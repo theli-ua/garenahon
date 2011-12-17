@@ -1,7 +1,5 @@
 #!/usr/bin/env python
-import string,cgi,time
-from os import curdir, sep
-import os
+import os,sys
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 import socket,struct,threading,subprocess
 import zipfile
@@ -40,17 +38,17 @@ def get_garena_token(user,password):
     parsed = struct.unpack('<IB32sBI',data)
     return parsed[2]
     
-ms = "http://masterserver.cis.s2games.com/"
+ms = "masterserver.cis.s2games.com"
+masterserver_international = 'masterserver.hon.s2games.com'
 USER_AGENT = "S2 Games/Heroes of Newerth/2.0.29.1/lac/x86-biarch"
 interface_patch_files = ['ui/fe2/matchmaking.package','ui/fe2/main.interface','ui/fe2/store_form_buycoins.package','ui/fe2/store_templates.package','ui/fe2/system_bar.package','ui/fe2/news.package','ui/fe2/public_games.package']
+current_version = ''
 
 def forward(path,query):
-    #print query
     details = urlencode(query).encode('utf8')
-    url = Request(ms + path,details)
+    url = Request('http://{0}/{1}'.format(ms, path),details)
     url.add_header("User-Agent",USER_AGENT)
     data = urlopen(url).read().decode("utf8", 'ignore') 
-    #print data
     return data
 garena_token = ''
 
@@ -67,21 +65,25 @@ class MyHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         global garena_token
+        global current_version
         #try:
         if True:
+            self.send_response(200)
+            self.end_headers()
+
             varLen = int(self.headers['Content-Length'])
             postVars = self.rfile.read(varLen)
             query = dict(urlparse.parse_qsl(postVars))
             if self.path == '/patcher/patcher.php':
-                query['os'] = 'wgc'
-                query['arch'] = 'i686'
+                #query['os'] = 'wgc'
+                #query['arch'] = 'i686'
+                #self.wfile.write('a:2:{i:0;a:7:{s:4:"name";s:7:"version";s:7:"version";s:5:"{0}";s:14:"compat_version";s:5:"0.0.0";s:2:"os";s:3:"lac";s:4:"arch";s:10:"x86-biarch";s:3:"url";s:30:"http://dl.heroesofnewerth.com/";s:4:"url2";s:29:"http://patch.hon.s2games.com/";}s:7:"version";s:7:"{0}";}'.format(current_version))
+                return
             elif 'f' in query and query['f'] == 'auth':
                 garena_token = get_garena_token(query['login'],query['password'])
                 query = {'f':'token_auth','token' : garena_token }
             elif 'f' in query and query['f'] == 'garena_register':
                 query['token'] = garena_token
-            self.send_response(200)
-            self.end_headers()
             self.wfile.write(forward(self.path,query));
         #except :
         #    pass
@@ -117,7 +119,64 @@ def patch_matchmaking(path):
         to.writestr(f,'\n'.join(out))
     res.close()
     to.close()
+        
+
+def update():
+    global current_version
+    if not os.path.exists('honpatch.py'):
+        print('honpatch not found,cannot update!!!!')
+        return
+    from honpatch import getVerInfo,Manifest,fetch_single
+    #get latest windows garena version
+    wgc_version = getVerInfo('wgc','i686',ms)['version']
+    if not os.path.exists('manifest.xml'):
+        sourceManifest = Manifest()
+    else:
+        sourceManifest = Manifest(xmlpath='manifest.xml')
+    if wgc_version == sourceManifest.version:
+        print('Already up to date')
+        return
+    verinfo = getVerInfo('lac','x86-biarch',masterserver_international) 
+    if verinfo['version'] == wgc_version:
+        destver = wgc_version
+    else:
+        import tempfile,shutil
+        fetchdir = tempfile.mkdtemp()
+        baseurl = verinfo[0]['url'] + 'lac' + '/' + 'x86-biarch' + '/'
+        baseurl2 = verinfo[0]['url2'] + 'lac' + '/' + 'x86-biarch' + '/'
+        if not fetch_single(baseurl,baseurl2,wgc_version,'manifest.xml',fetchdir,4):
+            print("Can't find linux version {0}".format(wgc_version))
+            wgc_version = wgc_version.split('.')
+            wgc_version[-1] = '0'
+            wgc_version = '.'.join(wgc_version)
+            print('Trying {0}'.format(wgc_version))
+            if sourceManifest.version == wgc_version:
+                print('Nothing to update')
+                return
+            if not fetch_single(baseurl,baseurl2,wgc_version,'manifest.xml',fetchdir,4):
+                print('Can''t fetch that too :(')
+                return
+        if sourceManifest.version == wgc_version:
+            print('Nothing to update')
+            return
+        args = [sys.executable,'honpatch.py'] 
+        current_version = wgc_version
+        if sourceManifest.version == '0.0.0.0':
+            args += ['-d','.']
+        else:
+            args += ['-s','.']
+        args += ['--os','lac']
+        args += ['--arch','x86-biarch']
+        args += ['-v',wgc_version]
+        args += ['--masterserver',masterserver_international]
+        p = subprocess.Popen(args)
+        print('patching hon to version {0}'.format(wgc_version))
+        p.wait()
+    
 def main():
+    print('checking for HoN updates')
+    update()
+
     mod_path = os.path.expanduser(MOD_PATH)
     clean_patches(mod_path)
     server = HTTPServer(('', WEBSERVER_PORT), MyHandler)
@@ -135,8 +194,7 @@ def main():
     args.append('cis.heroesofnewerth.com')
 
     args.append('-execute')
-    #args.append('"set chat_serverPortOverride 11033;set _TMM_Region_saved_RU 1;set _TMM_Region_saved_EU 0;set _TMM_Region_saved_USE 0;set _TMM_Region_saved_USW 0;set _TMM_Region_allow_EU false;set _TMM_Region_allow_USE false;set _TMM_Region_allow_USW false;set _TMM_Region_allow_RU true;set _TMM_Region_selected_EU false;set _TMM_Region_selected_USE false;set _TMM_Region_selected_USW false;set _TMM_Region_selected_RU true;set _TMM_List_Regions RU|USE|USW|EU;set _TMM_lastAvailRegions RU;set _TMM_List_Regions RU"')
-    args.append('"set upd_checkForUpdates false;set chat_serverPortOverride 11033; set _theli_GarenaEnable true"')
+    args.append('"set chat_serverPortOverride 11033; set _theli_GarenaEnable true"')
     
     print ('patching matchmaking interface')
     patch_matchmaking(mod_path)
