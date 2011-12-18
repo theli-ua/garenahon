@@ -6,6 +6,38 @@ import zipfile
 
 WEBSERVER_PORT = 8123
 MOD_PATH = "~/.Heroes of Newerth/game/resources_theli_garena.s2z"
+ms = "masterserver.cis.s2games.com"
+masterserver_international = 'masterserver.hon.s2games.com'
+USER_AGENT = "S2 Games/Heroes of Newerth/2.0.29.1/lac/x86-biarch"
+#interface_patch_files = ['ui/fe2/matchmaking.package','ui/fe2/main.interface','ui/fe2/store_form_buycoins.package','ui/fe2/store_templates.package','ui/fe2/system_bar.package','ui/fe2/news.package','ui/fe2/public_games.package']
+interface_patch_files = [
+'ui/fe2/changelog.package',
+'ui/fe2/communicator.package',
+'ui/fe2/create_account.package',
+'ui/fe2/creategame.package',
+'ui/fe2/form_create_account.package',
+'ui/fe2/form_create_paid_account.package',
+'ui/fe2/form_create_subaccount.package',
+'ui/fe2/form_gift_account.package',
+'ui/fe2/form_purchase_name_change.package',
+'ui/fe2/form_reset_stats.package',
+'ui/fe2/form_upgrade_account.package',
+'ui/fe2/form_upgrade_friend.package',
+'ui/fe2/main.interface',
+'ui/fe2/main_tooltips.package',
+'ui/fe2/matchmaking.package',
+'ui/fe2/news.package',
+'ui/fe2/player_stats.package',
+'ui/fe2/public_games.package',
+'ui/fe2/store_form_buycoins.package',
+'ui/fe2/store_form_namechange.package',
+'ui/fe2/store.package',
+'ui/fe2/store_templates.package',
+'ui/fe2/system_bar.package',
+'ui/fe2/ui_items_2.interface',
+]
+current_version = ''
+garena_token = ''
 
 try:
     #3.x
@@ -31,30 +63,26 @@ def get_garena_token(user,password):
     PORT = 8005
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.connect((HOST, PORT))
-    data = struct.pack('<IHHB16s33s5s',0x3b,0x0101,0x80,0,user,password,'RU')
+    data = struct.pack('<IHHB16s33s5s',0x3b,0x0101,0x80,0,user[0],password[0],'RU')
     s.send(data)
     data = s.recv(42)
     s.close()
     parsed = struct.unpack('<IB32sBI',data)
     return parsed[2]
     
-ms = "masterserver.cis.s2games.com"
-masterserver_international = 'masterserver.hon.s2games.com'
-USER_AGENT = "S2 Games/Heroes of Newerth/2.0.29.1/lac/x86-biarch"
-interface_patch_files = ['ui/fe2/matchmaking.package','ui/fe2/main.interface','ui/fe2/store_form_buycoins.package','ui/fe2/store_templates.package','ui/fe2/system_bar.package','ui/fe2/news.package','ui/fe2/public_games.package']
-current_version = ''
 
 def forward(path,query):
-    details = urlencode(query).encode('utf8')
+    details = urlencode(query,True).encode('utf8')
     url = Request('http://{0}/{1}'.format(ms, path),details)
     url.add_header("User-Agent",USER_AGENT)
     data = urlopen(url).read().decode("utf8", 'ignore') 
     return data
-garena_token = ''
 
 class MyHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
+        print('get')
+        print('self')
         try:
             self.send_error(404,'File Not Found: %s' % self.path)    
             return
@@ -73,16 +101,16 @@ class MyHandler(BaseHTTPRequestHandler):
 
             varLen = int(self.headers['Content-Length'])
             postVars = self.rfile.read(varLen)
-            query = dict(urlparse.parse_qsl(postVars))
+            query = urlparse.parse_qs(postVars)
             if self.path == '/patcher/patcher.php':
                 #query['os'] = 'wgc'
                 #query['arch'] = 'i686'
                 #self.wfile.write('a:2:{i:0;a:7:{s:4:"name";s:7:"version";s:7:"version";s:5:"{0}";s:14:"compat_version";s:5:"0.0.0";s:2:"os";s:3:"lac";s:4:"arch";s:10:"x86-biarch";s:3:"url";s:30:"http://dl.heroesofnewerth.com/";s:4:"url2";s:29:"http://patch.hon.s2games.com/";}s:7:"version";s:7:"{0}";}'.format(current_version))
                 return
-            elif 'f' in query and query['f'] == 'auth':
+            elif 'f' in query and query['f'][0] == 'auth':
                 garena_token = get_garena_token(query['login'],query['password'])
                 query = {'f':'token_auth','token' : garena_token }
-            elif 'f' in query and query['f'] == 'garena_register':
+            elif 'f' in query and query['f'][0] == 'garena_register':
                 query['token'] = garena_token
             self.wfile.write(forward(self.path,query));
         #except :
@@ -114,6 +142,8 @@ def patch_matchmaking(path):
                     patch_login2 = False
                 else:
                     out.append(line.replace('cl_GarenaEnable','_theli_GarenaEnable'))
+            elif line.find('ssl="true"'):
+                out.append(line.replace('ssl="true"','ssl="false"'))
             else:
                 out.append(line)
         to.writestr(f,'\n'.join(out))
@@ -174,6 +204,10 @@ def update():
         p.wait()
     
 def main():
+    abspath = os.path.abspath(__file__)
+    dname = os.path.dirname(abspath)
+    os.chdir(dname)
+    
     print('checking for HoN updates')
     update()
 
