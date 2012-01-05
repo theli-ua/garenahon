@@ -14,10 +14,12 @@ if system() == 'Linux':
     MOD_PATH = "~/.Heroes of Newerth/game/resources_theli_garena.s2z"
     HOST_OS = 'lac'
     HOST_ARCH = 'x86-biarch'
+    HON_BINARY = './hon.sh'
 else:
     HOST_OS = 'mac'
     HOST_ARCH = 'universal'
     MOD_PATH = '~/Library/Application Support/Heroes of Newerth/game/resources_theli_garena.s2z'
+    HON_BINARY = './HoN'
 
 #interface_patch_files = ['ui/fe2/matchmaking.package','ui/fe2/main.interface','ui/fe2/store_form_buycoins.package','ui/fe2/store_templates.package','ui/fe2/system_bar.package','ui/fe2/news.package','ui/fe2/public_games.package']
 interface_patch_files = [
@@ -229,7 +231,7 @@ def main():
     server_thread.start()
     print 'started httpserver...'
     print('starging hon')
-    args = ['./hon.sh']
+    args = [HON_BINARY]
     args.append('-masterserver')
     args.append('localhost:{0}'.format(WEBSERVER_PORT))
     args.append('-region')
