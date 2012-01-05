@@ -3,12 +3,22 @@ import os,sys
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 import socket,struct,threading,subprocess
 import zipfile
+from platform import system
 
 WEBSERVER_PORT = 8123
-MOD_PATH = "~/.Heroes of Newerth/game/resources_theli_garena.s2z"
 ms = "masterserver.cis.s2games.com"
 masterserver_international = 'masterserver.hon.s2games.com'
 USER_AGENT = "S2 Games/Heroes of Newerth/2.0.29.1/lac/x86-biarch"
+
+if system() == 'Linux':
+    MOD_PATH = "~/.Heroes of Newerth/game/resources_theli_garena.s2z"
+    HOST_OS = 'lac'
+    HOST_ARCH = 'x86-biarch'
+else:
+    HOST_OS = 'mac'
+    HOST_ARCH = 'universal'
+    MOD_PATH = '~/Library/Application Support/Heroes of Newerth/game/resources_theli_garena.s2z'
+
 #interface_patch_files = ['ui/fe2/matchmaking.package','ui/fe2/main.interface','ui/fe2/store_form_buycoins.package','ui/fe2/store_templates.package','ui/fe2/system_bar.package','ui/fe2/news.package','ui/fe2/public_games.package']
 interface_patch_files = [
 'ui/fe2/changelog.package',
@@ -172,10 +182,10 @@ def update():
     else:
         import tempfile,shutil
         fetchdir = tempfile.mkdtemp()
-        baseurl = verinfo[0]['url'] + 'lac' + '/' + 'x86-biarch' + '/'
-        baseurl2 = verinfo[0]['url2'] + 'lac' + '/' + 'x86-biarch' + '/'
+        baseurl = verinfo[0]['url'] + HOST_OS + '/' + HOST_ARCH + '/'
+        baseurl2 = verinfo[0]['url2'] + HOST_OS + '/' + HOST_ARCH + '/'
         if not fetch_single(baseurl,baseurl2,wgc_version,'manifest.xml',fetchdir,4):
-            print("Can't find linux version {0}".format(wgc_version))
+            print("Can't find {1} version {0}".format(wgc_version,system()))
             wgc_version = wgc_version.split('.')
             wgc_version[-1] = '0'
             wgc_version = '.'.join(wgc_version)
@@ -195,8 +205,8 @@ def update():
             args += ['-d','.']
         else:
             args += ['-s','.']
-        args += ['--os','lac']
-        args += ['--arch','x86-biarch']
+        args += ['--os',HOST_OS]
+        args += ['--arch',HOST_ARCH]
         args += ['-v',wgc_version]
         args += ['--masterserver',masterserver_international]
         p = subprocess.Popen(args)
