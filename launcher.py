@@ -216,6 +216,7 @@ def update():
         p.wait()
     
 def main():
+    global WEBSERVER_PORT
     abspath = os.path.abspath(__file__)
     dname = os.path.dirname(abspath)
     os.chdir(dname)
@@ -225,7 +226,14 @@ def main():
 
     mod_path = os.path.expanduser(MOD_PATH)
     clean_patches(mod_path)
-    server = HTTPServer(('', WEBSERVER_PORT), MyHandler)
+    started = False
+    while not started:
+        try:
+            server = HTTPServer(('', WEBSERVER_PORT), MyHandler)
+            started = True
+        except:
+            print("Local port {0} is busy, trying {1}".format(WEBSERVER_PORT,WEBSERVER_PORT + 1))
+            WEBSERVER_PORT += 1
     server_thread = threading.Thread(target=server.serve_forever)
     server_thread.daemon = True
     server_thread.start()
