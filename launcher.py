@@ -49,7 +49,9 @@ interface_patch_files = [
 'ui/fe2/system_bar.package',
 'ui/fe2/ui_items_2.interface',
 ]
-current_version = ''
+current_version = None
+patchurl_1 = None
+patchurl_2 = None
 garena_token = ''
 
 try:
@@ -70,7 +72,109 @@ except:
     import urlparse
     from httplib        import HTTPConnection
     from Queue          import Queue
-    
+
+def unserialize(s):
+    return _unserialize_var(s)[0]
+
+def _unserialize_var(s):
+    return (
+        { 'i' : _unserialize_int
+        , 'b' : _unserialize_bool
+        , 'd' : _unserialize_double
+        , 'n' : _unserialize_null
+        , 's' : _unserialize_string
+        , 'a' : _unserialize_array
+        }[s[0].lower()](s[2:]))
+
+def _unserialize_int(s):
+    x = s.partition(';')
+    return (int(x[0]), x[2])
+
+def _unserialize_bool(s):
+    x = s.partition(';')
+    return (x[0] == '1', x[2])
+
+def _unserialize_double(s):
+    x = s.partition(';')
+    return (float(x[0]), x[2])
+
+def _unserialize_null(s):
+    return (None, s)
+
+def _unserialize_string(s):
+    (l, _, s) = s.partition(':')
+    return (s[1:int(l)+1], s[int(l)+3:])
+
+def _unserialize_array(s):
+    (l, _, s) = s.partition(':')
+    a, k, s = {}, None, s[1:]
+
+    for i in range(0, int(l) * 2):
+        (v, s) = _unserialize_var(s)
+
+        if k != None:
+            a[k] = v
+            k = None
+        else:
+            k = v
+    return (a,s[1:])   
+
+def dumps(data, charset='utf-8', errors='strict', object_hook=None):
+    """Return the PHP-serialized representation of the object as a string,
+    instead of writing it to a file like `dump` does.
+    """
+    def _serialize(obj, keypos):
+        if keypos:
+            if isinstance(obj, (int, long, float, bool)):
+                return 'i:%i;' % obj
+            if isinstance(obj, basestring):
+                if isinstance(obj, unicode):
+                    obj = obj.encode(charset, errors)
+                return 's:%i:"%s";' % (len(obj), obj)
+            if obj is None:
+                return 's:0:"";'
+            raise TypeError('can\'t serialize %r as key' % type(obj))
+        else:
+            if obj is None:
+                return 'N;'
+            if isinstance(obj, bool):
+                return 'b:%i;' % obj
+            if isinstance(obj, (int, long)):
+                return 'i:%s;' % obj
+            if isinstance(obj, float):
+                return 'd:%s;' % obj
+            if isinstance(obj, basestring):
+                if isinstance(obj, unicode):
+                    obj = obj.encode(charset, errors)
+                return 's:%i:"%s";' % (len(obj), obj)
+            if isinstance(obj, (list, tuple, dict)):
+                out = []
+                if isinstance(obj, dict):
+                    iterable = obj.iteritems()
+                else:
+                    iterable = enumerate(obj)
+                for key, value in iterable:
+                    out.append(_serialize(key, True))
+                    out.append(_serialize(value, False))
+                return 'a:%i:{%s}' % (len(obj), ''.join(out))
+            if isinstance(obj, phpobject):
+                return 'O%s%s' % (
+                    _serialize(obj.__name__, True)[1:-1],
+                    _serialize(obj.__php_vars__, False)[1:]
+                )
+            if object_hook is not None:
+                return _serialize(object_hook(obj), False)
+            raise TypeError('can\'t serialize %r' % type(obj))
+    return _serialize(data, False)
+
+def getVerInfo(os,arch,masterserver):
+    details = urlencode({'version' : '0.0.0.0', 'os' : os ,'arch' : arch}).encode('utf8')
+    url = Request('http://{0}/patcher/patcher.php'.format(masterserver),details)
+    url.add_header("User-Agent",USER_AGENT)
+    data = urlopen(url).read().decode("utf8", 'ignore') 
+    d = unserialize(data)
+    return d
+
 def get_garena_token(user,password):
     HOST = 'Honsng_cs.mmoauth.garena.com'
     PORT = 8005
@@ -116,9 +220,14 @@ class MyHandler(BaseHTTPRequestHandler):
             postVars = self.rfile.read(varLen)
             query = urlparse.parse_qs(postVars)
             if self.path == '/patcher/patcher.php':
-                #query['os'] = 'wgc'
-                #query['arch'] = 'i686'
-                #self.wfile.write('a:2:{i:0;a:7:{s:4:"name";s:7:"version";s:7:"version";s:5:"{0}";s:14:"compat_version";s:5:"0.0.0";s:2:"os";s:3:"lac";s:4:"arch";s:10:"x86-biarch";s:3:"url";s:30:"http://dl.heroesofnewerth.com/";s:4:"url2";s:29:"http://patch.hon.s2games.com/";}s:7:"version";s:7:"{0}";}'.format(current_version))
+                response = unserialize('a:2:{i:0;a:7:{s:4:"name";s:7:"version";s:7:"version";s:7:"2.5.5.1";s:14:"compat_version";s:5:"0.0.0";s:2:"os";s:3:"wgc";s:4:"arch";s:4:"i686";s:3:"url";s:30:"http://dl.heroesofnewerth.com/";s:4:"url2";s:29:"http://patch.hon.s2games.com/";}s:7:"version";s:7:"2.5.5.1";}')
+                response[0]['version'] = current_version
+                response['version'] = current_version
+                response[0]['url'] = patchurl_1
+                response[0]['url2'] = patchurl_2
+                response[0]['os'] = HOST_OS
+                response[0]['arch'] = HOST_ARCH
+                self.wfile.write(dumps(response))
                 return
             elif 'f' in query and query['f'][0] == 'auth':
                 garena_token = get_garena_token(query['login'],query['password'])
@@ -162,12 +271,41 @@ def patch_matchmaking(path):
         to.writestr(f,'\n'.join(out))
     res.close()
     to.close()
-        
 
-def update():
+def find_latest_version():
+    global current_version,patchurl_1,patchurl_2
+    wgc_version = getVerInfo('wgc','i686',ms)['version']
+    wgc_version = wgc_version.split('.')
+    verinfo = getVerInfo(HOST_OS,HOST_ARCH,masterserver_international) 
+    baseurl = verinfo[0]['url'] + HOST_OS + '/' + HOST_ARCH + '/'
+    baseurl2 = verinfo[0]['url2'] + HOST_OS + '/' + HOST_ARCH + '/'
+    patchurl_1 = verinfo[0]['url']
+    patchurl_2 = verinfo[0]['url2']
+    while int(wgc_version[-1]) >= 0:
+        if wgc_version[-1] == '0':
+            ver = '.'.join(wgc_version[:-1])
+        else:
+            ver = '.'.join(wgc_version)
+        url1 = '{0}/{1}/manifest.xml.zip'.format(baseurl,ver)
+        url2 = '{0}/{1}/manifest.xml.zip'.format(baseurl2,ver)
+        try:
+            if urlopen(url1).getcode() == 200:
+                current_version = '.'.join(wgc_version)
+                break
+        except:pass
+        try:
+            if urlopen(url2).getcode() == 200:
+                current_version = '.'.join(wgc_version)
+                break
+        except:pass
+        wgc_version[-1] = str(int(wgc_version[-1]) - 1)
+    print "Found latest appropriate version: {0}".format(current_version)
+
+
+def update_honpatch():
     global current_version
     if not os.path.exists('honpatch.py'):
-        print('honpatch not found,cannot update!!!!')
+        print('honpatch not found,will use ingame updater')
         return
     from honpatch import getVerInfo,Manifest,fetch_single
     #get latest windows garena version
@@ -224,7 +362,10 @@ def main():
     os.chdir(dname)
     
     print('checking for HoN updates')
-    update()
+    if not os.path.exists('honpatch.py'):
+        find_latest_version()
+    else:
+        update_honpatch()
 
     mod_path = os.path.expanduser(MOD_PATH)
     clean_patches(mod_path)
