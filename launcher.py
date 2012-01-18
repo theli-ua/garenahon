@@ -5,6 +5,7 @@ import socket,struct,threading,subprocess
 import zipfile
 from platform import system
 
+abspath = ''
 WEBSERVER_PORT = 8123
 ms = "masterserver.cis.s2games.com"
 masterserver_international = 'masterserver.hon.s2games.com'
@@ -172,7 +173,8 @@ def update():
     #get latest windows garena version
     wgc_version = getVerInfo('wgc','i686',ms)['version']
     if not os.path.exists('manifest.xml'):
-        sourceManifest = Manifest()
+        #sourceManifest = Manifest()
+        print('No manifest.xml found in {0}, you need to place launcher.py in HoN directory'.format(abspath))
     else:
         sourceManifest = Manifest(xmlpath='manifest.xml')
     if wgc_version == sourceManifest.version:
@@ -216,7 +218,7 @@ def update():
         p.wait()
     
 def main():
-    global WEBSERVER_PORT
+    global WEBSERVER_PORT,abspath
     abspath = os.path.abspath(__file__)
     dname = os.path.dirname(abspath)
     os.chdir(dname)
