@@ -223,8 +223,8 @@ class MyHandler(BaseHTTPRequestHandler):
                 response = unserialize('a:2:{i:0;a:7:{s:4:"name";s:7:"version";s:7:"version";s:7:"2.5.5.1";s:14:"compat_version";s:5:"0.0.0";s:2:"os";s:3:"wgc";s:4:"arch";s:4:"i686";s:3:"url";s:30:"http://dl.heroesofnewerth.com/";s:4:"url2";s:29:"http://patch.hon.s2games.com/";}s:7:"version";s:7:"2.5.5.1";}')
                 response[0]['version'] = current_version
                 response['version'] = current_version
-                response[0]['url'] = patchurl_1
-                response[0]['url2'] = patchurl_2
+                #response[0]['url'] = patchurl_1
+                #response[0]['url2'] = patchurl_2
                 response[0]['os'] = HOST_OS
                 response[0]['arch'] = HOST_ARCH
                 self.wfile.write(dumps(response))
