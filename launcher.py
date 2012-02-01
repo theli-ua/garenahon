@@ -7,7 +7,6 @@ from platform import system
 
 abspath = ''
 WEBSERVER_PORT = 8123
-ms = "masterserver.cis.s2games.com"
 masterserver_international = 'masterserver.hon.s2games.com'
 USER_AGENT = "S2 Games/Heroes of Newerth/2.0.29.1/lac/x86-biarch"
 
@@ -176,11 +175,15 @@ def getVerInfo(os,arch,masterserver):
     return d
 
 def get_garena_token(user,password):
-    HOST = 'Honsng_cs.mmoauth.garena.com'
     PORT = 8005
+    try:
+        ip_region = urlopen('http://75.126.149.34:6008/').read()
+    except:
+        ip_region = 'RU'
+
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.connect((HOST, PORT))
-    data = struct.pack('<IHHB16s33s5s',0x3b,0x0101,0x80,0,user[0],password[0],'RU')
+    s.connect((GARENA_AUTH_SERVER, PORT))
+    data = struct.pack('<IHHB16s33s5s',0x3b,0x0101,0x80,0,user[0],password[0],ip_region)
     s.send(data)
     data = s.recv(42)
     s.close()
@@ -190,7 +193,7 @@ def get_garena_token(user,password):
 
 def forward(path,query):
     details = urlencode(query,True).encode('utf8')
-    url = Request('http://{0}/{1}'.format(ms, path),details)
+    url = Request('http://{0}/{1}'.format(GARENA_MASTERSERVER, path),details)
     url.add_header("User-Agent",USER_AGENT)
     data = urlopen(url).read().decode("utf8", 'ignore') 
     return data
@@ -230,8 +233,12 @@ class MyHandler(BaseHTTPRequestHandler):
                 self.wfile.write(dumps(response))
                 return
             elif 'f' in query and query['f'][0] == 'auth':
-                garena_token = get_garena_token(query['login'],query['password'])
-                query = {'f':'token_auth','token' : garena_token }
+                try:
+                    garena_token = get_garena_token(query['login'],query['password'])
+                    query = {'f':'token_auth','token' : garena_token }
+                except:
+                    self.wfile.write('a:2:{i:0;b:0;s:4:"auth";s:29:"Invalid Nickname or Password.";}')
+                    return
             elif 'f' in query and query['f'][0] == 'garena_register':
                 query['token'] = garena_token
             self.wfile.write(forward(self.path,query));
@@ -243,6 +250,9 @@ def clean_patches(path):
         os.unlink(path)
 
 def patch_matchmaking(path):
+    dpath = os.path.dirname(path)
+    if not os.path.exists(dpath):
+        os.makedirs(dpath)
     res = zipfile.ZipFile('game/resources0.s2z','r')
     to = zipfile.ZipFile(path,'w')
     patch_login1 = False
@@ -274,7 +284,7 @@ def patch_matchmaking(path):
 
 def find_latest_version():
     global current_version,patchurl_1,patchurl_2
-    wgc_version = getVerInfo('wgc','i686',ms)['version']
+    wgc_version = getVerInfo('wgc','i686',GARENA_MASTERSERVER)['version']
     wgc_version = wgc_version.split('.')
     verinfo = getVerInfo(HOST_OS,HOST_ARCH,masterserver_international) 
     baseurl = verinfo[0]['url'] + HOST_OS + '/' + HOST_ARCH + '/'
@@ -309,7 +319,7 @@ def update_honpatch():
         return
     from honpatch import getVerInfo,Manifest,fetch_single
     #get latest windows garena version
-    wgc_version = getVerInfo('wgc','i686',ms)['version']
+    wgc_version = getVerInfo('wgc','i686',GARENA_MASTERSERVER)['version']
     if not os.path.exists('manifest.xml'):
         #sourceManifest = Manifest()
         print('No manifest.xml found in {0}, you need to place launcher.py in HoN directory'.format(abspath))
@@ -356,7 +366,23 @@ def update_honpatch():
         p.wait()
     
 def main():
-    global WEBSERVER_PORT,abspath
+    global WEBSERVER_PORT,abspath,GARENA_MASTERSERVER,GARENA_WEBSERVER,GARENA_AUTH_SERVER
+    if len(sys.argv) < 2 or sys.argv[1] not in ['cis','sea']:
+        print('You need to specify region on command line, like')
+        print('./launcher.py cis')
+        print('or')
+        print('./launcher.py sea')
+        sys.exit(1)
+    if sys.argv[1] == 'cis':
+        GARENA_WEBSERVER = 'cis.heroesofnewerth.com'
+        GARENA_AUTH_SERVER = 'Honsng_cs.mmoauth.garena.com'
+        GARENA_MASTERSERVER = 'masterserver.cis.s2games.com'
+    else:
+        GARENA_WEBSERVER = 'garena.heroesofnewerth.com'
+        GARENA_AUTH_SERVER = 'hon.auth.garenanow.com'
+        GARENA_MASTERSERVER = 'masterserver.garena.s2games.com'
+
+
     abspath = os.path.abspath(__file__)
     dname = os.path.dirname(abspath)
     os.chdir(dname)
@@ -385,10 +411,11 @@ def main():
     args = [HON_BINARY]
     args.append('-masterserver')
     args.append('localhost:{0}'.format(WEBSERVER_PORT))
-    args.append('-region')
-    args.append('RU')
+    if sys.argv[1] == 'cis':
+        args.append('-region')
+        args.append('RU')
     args.append('-webserver')
-    args.append('cis.heroesofnewerth.com')
+    args.append(GARENA_WEBSERVER)
 
     args.append('-execute')
     args.append('"set chat_serverPortOverride 11033; set _theli_GarenaEnable true"')
