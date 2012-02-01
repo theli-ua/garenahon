@@ -261,7 +261,8 @@ def patch_matchmaking(path):
         out = []
         mm = res.open(f,'U')
         for line in mm:
-            if line.find('Login Options') != -1 or line.find('Login Input Box') != -1:
+            if line.find('Login Options') != -1 or line.find('Login Input Box') != -1 \
+                    or line.find('name="main_login_user"') != -1:
                 patch_login1 = True
             elif line.find('Garena NO direct start warning') != -1 or line.find('iris.tga') != -1:
                 patch_login2 = True
