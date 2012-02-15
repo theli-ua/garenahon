@@ -212,6 +212,7 @@ class MyHTTPServer(HTTPServer):
         HTTPServer.__init__(self,params,handler)
         self.__is_shut_down = threading.Event()
         self.__serving = False
+        self.requests = []
 
     def serve_forever(self, poll_interval=0.5):
         #hasattr(BaseHTTPServer.HTTPServer, '_handle_request_noblock'):
@@ -244,11 +245,21 @@ class MyHTTPServer(HTTPServer):
                 r.close()
             except Exception:
                 pass
-        if hasattr(BaseHTTPServer.HTTPServer, 'shutdown'):
-            BaseHTTPServer.HTTPServer.shutdown(self)
+        if hasattr(HTTPServer, 'shutdown'):
+            HTTPServer.shutdown(self)
         else:
             self.__serving = False
             self.__is_shut_down.wait()
+    def finish_request(self, request, client_address):
+        self.requests.append(request)
+        try:
+            HTTPServer.finish_request(self, request, client_address)
+        except socket.timeout:
+            pass
+        except Exception,inst:
+            errno = None
+            pass
+        self.requests.remove(request)
 
 class MyHandler(BaseHTTPRequestHandler):
     def do_GET(self):
