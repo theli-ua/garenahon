@@ -467,8 +467,10 @@ def main():
     p = subprocess.Popen(args)
     p.wait()
     print('hon exited, stopping masterserver and cleaning up')
-    server.shutdown()
     clean_patches(mod_path)    
+    try:
+        server.shutdown()
+    except:pass
 
 if __name__ == '__main__':
     main()
