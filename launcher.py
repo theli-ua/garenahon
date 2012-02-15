@@ -207,6 +207,11 @@ def forward(path,query):
     return data
 
 class MyHTTPServer(HTTPServer):
+    def __init__(self, params, handler):
+        HTTPServer.__init__(self,params,handler)
+        self.__is_shut_down = threading.Event()
+        self.__serving = False
+
     def serve_forever(self, poll_interval=0.5):
         #hasattr(BaseHTTPServer.HTTPServer, '_handle_request_noblock'):
         if sys.hexversion >= 0x020600f0:
