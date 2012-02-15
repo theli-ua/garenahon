@@ -207,6 +207,42 @@ def forward(path,query):
     return data
 
 class MyHandler(BaseHTTPRequestHandler):
+    def serve_forever(self, poll_interval=0.5):
+        #hasattr(BaseHTTPServer.HTTPServer, '_handle_request_noblock'):
+        if sys.hexversion >= 0x020600f0:
+            BaseHTTPServer.HTTPServer.serve_forever(self, poll_interval) # 2.6
+        else:
+            self._serve_forever(poll_interval) # 2.5
+    def _serve_forever(self, poll_interval=0.5):
+        """Handle one request at a time until shutdown.
+
+        Polls for shutdown every poll_interval seconds. Ignores
+        self.timeout. If you need to do periodic tasks, do them in
+        another thread.
+        """
+        self.__serving = True
+        self.__is_shut_down.clear()
+        while self.__serving:
+            # XXX: Consider using another file descriptor or
+            # connecting to the socket to wake this up instead of
+            # polling. Polling reduces our responsiveness to a
+            # shutdown request and wastes cpu at all other times.
+            r, w, e = select.select([self], [], [], poll_interval)
+            if r:
+                self.handle_request()
+        self.__is_shut_down.set()
+    def shutdown(self):
+        for r in self.requests: 
+            try:
+                r.shutdown(socket.SHUT_RDWR)
+                r.close()
+            except Exception:
+                pass
+        if hasattr(BaseHTTPServer.HTTPServer, 'shutdown'):
+            BaseHTTPServer.HTTPServer.shutdown(self)
+        else:
+            self.__serving = False
+            self.__is_shut_down.wait()
 
     def do_GET(self):
         print('get')
@@ -468,9 +504,7 @@ def main():
     p.wait()
     print('hon exited, stopping masterserver and cleaning up')
     clean_patches(mod_path)    
-    try:
-        server.shutdown()
-    except:pass
+    server.shutdown()
 
 if __name__ == '__main__':
     main()
