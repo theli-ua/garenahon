@@ -206,7 +206,7 @@ def forward(path,query):
     data = urlopen(url).read().decode("utf8", 'ignore') 
     return data
 
-class MyHandler(BaseHTTPRequestHandler):
+class MyHTTPServer(HTTPServer):
     def serve_forever(self, poll_interval=0.5):
         #hasattr(BaseHTTPServer.HTTPServer, '_handle_request_noblock'):
         if sys.hexversion >= 0x020600f0:
@@ -244,6 +244,7 @@ class MyHandler(BaseHTTPRequestHandler):
             self.__serving = False
             self.__is_shut_down.wait()
 
+class MyHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         print('get')
         print('self')
@@ -469,7 +470,7 @@ def main():
     started = False
     while not started:
         try:
-            server = HTTPServer(('', WEBSERVER_PORT), MyHandler)
+            server = MyHTTPServer(('', WEBSERVER_PORT), MyHandler)
             started = True
         except:
             try:
