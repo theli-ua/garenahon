@@ -168,7 +168,11 @@ def dumps(data, charset='utf-8', errors='strict', object_hook=None):
 
 def getVerInfo(os,arch,masterserver):
     details = urlencode({'version' : '0.0.0.0', 'os' : os ,'arch' : arch}).encode('utf8')
-    url = Request('http://{0}/patcher/patcher.php'.format(masterserver),details)
+    try:
+        url = Request('http://{0}/patcher/patcher.php'.format(masterserver),details)
+    except:
+        url = Request('http://%s/patcher/patcher.php' % masterserver,details)
+
     url.add_header("User-Agent",USER_AGENT)
     data = urlopen(url).read().decode("utf8", 'ignore') 
     d = unserialize(data)
@@ -193,7 +197,10 @@ def get_garena_token(user,password):
 
 def forward(path,query):
     details = urlencode(query,True).encode('utf8')
-    url = Request('http://{0}/{1}'.format(GARENA_MASTERSERVER, path),details)
+    try:
+        url = Request('http://{0}/{1}'.format(GARENA_MASTERSERVER, path),details)
+    except:
+        url = Request('http://%s/%s' % (GARENA_MASTERSERVER, path),details)
     url.add_header("User-Agent",USER_AGENT)
     data = urlopen(url).read().decode("utf8", 'ignore') 
     return data
@@ -259,7 +266,7 @@ def patch_matchmaking(path):
     patch_login2 = False
     for f in interface_patch_files:
         out = []
-        mm = res.open(f,'U')
+        mm = res.read(f).splitlines()
         for line in mm:
             if line.find('Login Options') != -1 or line.find('Login Input Box') != -1 \
                     or line.find('name="main_login_user"') != -1:
@@ -297,8 +304,12 @@ def find_latest_version():
             ver = '.'.join(wgc_version[:-1])
         else:
             ver = '.'.join(wgc_version)
-        url1 = '{0}/{1}/manifest.xml.zip'.format(baseurl,ver)
-        url2 = '{0}/{1}/manifest.xml.zip'.format(baseurl2,ver)
+        try:
+            url1 = '{0}/{1}/manifest.xml.zip'.format(baseurl,ver)
+            url2 = '{0}/{1}/manifest.xml.zip'.format(baseurl2,ver)
+        except:
+            url1 = '%s/%s/manifest.xml.zip' % (baseurl,ver)
+            url2 = '%s/%s/manifest.xml.zip' % (baseurl2,ver)
         try:
             if urlopen(url1).getcode() == 200:
                 current_version = '.'.join(wgc_version)
@@ -310,7 +321,10 @@ def find_latest_version():
                 break
         except:pass
         wgc_version[-1] = str(int(wgc_version[-1]) - 1)
-    print "Found latest appropriate version: {0}".format(current_version)
+    try:
+        print ("Found latest appropriate version: {0}".format(current_version))
+    except:
+        print "Found latest appropriate version: %s" % (current_version)
 
 
 def update_honpatch():
@@ -323,7 +337,10 @@ def update_honpatch():
     wgc_version = getVerInfo('wgc','i686',GARENA_MASTERSERVER)['version']
     if not os.path.exists('manifest.xml'):
         #sourceManifest = Manifest()
-        print('No manifest.xml found in {0}, you need to place launcher.py in HoN directory'.format(abspath))
+        try:
+            print('No manifest.xml found in {0}, you need to place launcher.py in HoN directory'.format(abspath))
+        except:
+            print 'No manifest.xml found in %s, you need to place launcher.py in HoN directory' % (abspath)
     else:
         sourceManifest = Manifest(xmlpath='manifest.xml')
     if wgc_version == sourceManifest.version:
@@ -338,11 +355,17 @@ def update_honpatch():
         baseurl = verinfo[0]['url'] + HOST_OS + '/' + HOST_ARCH + '/'
         baseurl2 = verinfo[0]['url2'] + HOST_OS + '/' + HOST_ARCH + '/'
         if not fetch_single(baseurl,baseurl2,wgc_version,'manifest.xml',fetchdir,4):
-            print("Can't find {1} version {0}".format(wgc_version,system()))
+            try:
+                print("Can't find {1} version {0}".format(wgc_version,system()))
+            except:
+                print "Can't find %s version %s" % (wgc_version,system())
             wgc_version = wgc_version.split('.')
             wgc_version[-1] = '0'
             wgc_version = '.'.join(wgc_version)
-            print('Trying {0}'.format(wgc_version))
+            try:
+                print('Trying {0}'.format(wgc_version))
+            except:
+                print('Trying %s' % (wgc_version))
             if sourceManifest.version == wgc_version:
                 print('Nothing to update')
                 return
@@ -363,7 +386,10 @@ def update_honpatch():
         args += ['-v',wgc_version]
         args += ['--masterserver',masterserver_international]
         p = subprocess.Popen(args)
-        print('patching hon to version {0}'.format(wgc_version))
+        try:
+            print('patching hon to version {0}'.format(wgc_version))
+        except:
+            print('patching hon to version %s' % (wgc_version))
         p.wait()
     
 def main():
@@ -402,7 +428,10 @@ def main():
             server = HTTPServer(('', WEBSERVER_PORT), MyHandler)
             started = True
         except:
-            print("Local port {0} is busy, trying {1}".format(WEBSERVER_PORT,WEBSERVER_PORT + 1))
+            try:
+                print("Local port {0} is busy, trying {1}".format(WEBSERVER_PORT,WEBSERVER_PORT + 1))
+            except:
+                print("Local port %s is busy, trying %s" % (WEBSERVER_PORT,WEBSERVER_PORT + 1))
             WEBSERVER_PORT += 1
     server_thread = threading.Thread(target=server.serve_forever)
     server_thread.daemon = True
@@ -411,7 +440,10 @@ def main():
     print('starging hon')
     args = [HON_BINARY]
     args.append('-masterserver')
-    args.append('localhost:{0}'.format(WEBSERVER_PORT))
+    try:
+        args.append('localhost:{0}'.format(WEBSERVER_PORT))
+    except:
+        args.append('localhost:%d' % (WEBSERVER_PORT))
     if sys.argv[1] == 'cis':
         args.append('-region')
         args.append('RU')
