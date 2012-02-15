@@ -2,6 +2,7 @@
 import os,sys
 import socket,struct,threading,subprocess
 import zipfile
+import select
 from platform import system
 
 abspath = ''
@@ -215,7 +216,7 @@ class MyHTTPServer(HTTPServer):
     def serve_forever(self, poll_interval=0.5):
         #hasattr(BaseHTTPServer.HTTPServer, '_handle_request_noblock'):
         if sys.hexversion >= 0x020600f0:
-            BaseHTTPServer.HTTPServer.serve_forever(self, poll_interval) # 2.6
+            HTTPServer.serve_forever(self, poll_interval) # 2.6
         else:
             self._serve_forever(poll_interval) # 2.5
     def _serve_forever(self, poll_interval=0.5):
