@@ -74,6 +74,12 @@ except:
     from Queue          import Queue
     from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 
+try:
+    parse_qs = urlparse.parse_qs
+except:
+    import cgi
+    parse_qs = cgi.parse_qs
+
 def unserialize(s):
     return _unserialize_var(s)[0]
 
@@ -185,11 +191,15 @@ def get_garena_token(user,password):
     try:
         ip_region = urlopen('http://75.126.149.34:6008/').read()
     except:
-        ip_region = 'RU'
+        ip_region = 'RU'.encode('utf8')
 
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.connect((GARENA_AUTH_SERVER, PORT))
-    data = struct.pack('<IHHB16s33s5s',0x3b,0x0101,0x80,0,user[0],password[0],ip_region)
+
+    user = user.encode('utf8')
+    password = password.encode('utf8')
+
+    data = struct.pack('<IHHB16s33s5s',0x3b,0x0101,0x80,0,user,password,ip_region)
     s.send(data)
     data = s.recv(42)
     s.close()
@@ -200,11 +210,11 @@ def get_garena_token(user,password):
 def forward(path,query):
     details = urlencode(query,True).encode('utf8')
     try:
-        url = Request('http://{0}/{1}'.format(GARENA_MASTERSERVER, path),details)
+        url = Request('http://{0}{1}'.format(GARENA_MASTERSERVER, path),details)
     except:
-        url = Request('http://%s/%s' % (GARENA_MASTERSERVER, path),details)
+        url = Request('http://%s%s' % (GARENA_MASTERSERVER, path),details)
     url.add_header("User-Agent",USER_AGENT)
-    data = urlopen(url).read().decode("utf8", 'ignore') 
+    data = urlopen(url).read()
     return data
 
 class MyHTTPServer(HTTPServer):
@@ -252,11 +262,7 @@ class MyHTTPServer(HTTPServer):
             self.__is_shut_down.wait()
     def finish_request(self, request, client_address):
         self.requests.append(request)
-        try:
-            HTTPServer.finish_request(self, request, client_address)
-        except:
-            errno = None
-            pass
+        HTTPServer.finish_request(self, request, client_address)
         self.requests.remove(request)
 
 class MyHandler(BaseHTTPRequestHandler):
@@ -280,8 +286,8 @@ class MyHandler(BaseHTTPRequestHandler):
             self.end_headers()
 
             varLen = int(self.headers['Content-Length'])
-            postVars = self.rfile.read(varLen)
-            query = urlparse.parse_qs(postVars)
+            postVars = self.rfile.read(varLen).decode('utf8')
+            query = parse_qs(postVars)
             if self.path == '/patcher/patcher.php':
                 response = unserialize('a:2:{i:0;a:7:{s:4:"name";s:7:"version";s:7:"version";s:7:"2.5.5.1";s:14:"compat_version";s:5:"0.0.0";s:2:"os";s:3:"wgc";s:4:"arch";s:4:"i686";s:3:"url";s:30:"http://dl.heroesofnewerth.com/";s:4:"url2";s:29:"http://patch.hon.s2games.com/";}s:7:"version";s:7:"2.5.5.1";}')
                 response[0]['version'] = current_version
@@ -292,8 +298,11 @@ class MyHandler(BaseHTTPRequestHandler):
                 response[0]['arch'] = HOST_ARCH
                 self.wfile.write(dumps(response))
                 return
-            elif 'f' in query and query['f'][0] == 'auth':
+            elif 'f' in query and (query['f'][0] == 'auth' or query['f'][0] == ['auth']):
                 try:
+                    if isinstance(query['password'], list):
+                        query['password'] = query['password'][0]
+                        query['login'] = query['login'][0]
                     garena_token = get_garena_token(query['login'],query['password'])
                     query = {'f':'token_auth','token' : garena_token }
                 except:
