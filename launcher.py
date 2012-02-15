@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 import os,sys
-from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 import socket,struct,threading,subprocess
 import zipfile
 from platform import system
@@ -62,8 +61,9 @@ try:
     import urllib.parse as urlparse
     from http.client    import HTTPConnection
     from queue          import Queue
+    from http.server    import BaseHTTPRequestHandler, HTTPServer
 except:
-    #2.7
+    #2.x
     from urllib2        import Request
     from urllib2        import urlopen
     from urllib         import urlencode
@@ -71,6 +71,7 @@ except:
     import urlparse
     from httplib        import HTTPConnection
     from Queue          import Queue
+    from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 
 def unserialize(s):
     return _unserialize_var(s)[0]
@@ -266,7 +267,7 @@ def patch_matchmaking(path):
     patch_login2 = False
     for f in interface_patch_files:
         out = []
-        mm = res.read(f).splitlines()
+        mm = res.read(f).decode('utf8').splitlines()
         for line in mm:
             if line.find('Login Options') != -1 or line.find('Login Input Box') != -1 \
                     or line.find('name="main_login_user"') != -1:
@@ -299,6 +300,8 @@ def find_latest_version():
     baseurl2 = verinfo[0]['url2'] + HOST_OS + '/' + HOST_ARCH + '/'
     patchurl_1 = verinfo[0]['url']
     patchurl_2 = verinfo[0]['url2']
+    #just in case there was non-windows hotfix
+    wgc_version[-1] = str(int(wgc_version[-1]) + 1)
     while int(wgc_version[-1]) >= 0:
         if wgc_version[-1] == '0':
             ver = '.'.join(wgc_version[:-1])
@@ -310,21 +313,26 @@ def find_latest_version():
         except:
             url1 = '%s/%s/manifest.xml.zip' % (baseurl,ver)
             url2 = '%s/%s/manifest.xml.zip' % (baseurl2,ver)
+
         try:
-            if urlopen(url1).getcode() == 200:
-                current_version = '.'.join(wgc_version)
-                break
-        except:pass
+            urlopen(url1)
+            current_version = '.'.join(wgc_version)
+            break
+        except:
+            pass
+
         try:
-            if urlopen(url2).getcode() == 200:
-                current_version = '.'.join(wgc_version)
-                break
-        except:pass
+            urlopen(url2)
+            current_version = '.'.join(wgc_version)
+            break
+        except:
+            pass
+
         wgc_version[-1] = str(int(wgc_version[-1]) - 1)
     try:
         print ("Found latest appropriate version: {0}".format(current_version))
     except:
-        print "Found latest appropriate version: %s" % (current_version)
+        print ("Found latest appropriate version: %s" % (current_version))
 
 
 def update_honpatch():
@@ -340,7 +348,7 @@ def update_honpatch():
         try:
             print('No manifest.xml found in {0}, you need to place launcher.py in HoN directory'.format(abspath))
         except:
-            print 'No manifest.xml found in %s, you need to place launcher.py in HoN directory' % (abspath)
+            print('No manifest.xml found in %s, you need to place launcher.py in HoN directory' % (abspath))
     else:
         sourceManifest = Manifest(xmlpath='manifest.xml')
     if wgc_version == sourceManifest.version:
@@ -358,7 +366,7 @@ def update_honpatch():
             try:
                 print("Can't find {1} version {0}".format(wgc_version,system()))
             except:
-                print "Can't find %s version %s" % (wgc_version,system())
+                print("Can't find %s version %s" % (wgc_version,system()))
             wgc_version = wgc_version.split('.')
             wgc_version[-1] = '0'
             wgc_version = '.'.join(wgc_version)
@@ -436,7 +444,7 @@ def main():
     server_thread = threading.Thread(target=server.serve_forever)
     server_thread.daemon = True
     server_thread.start()
-    print 'started httpserver...'
+    print('started httpserver...')
     print('starging hon')
     args = [HON_BINARY]
     args.append('-masterserver')
