@@ -254,9 +254,7 @@ class MyHTTPServer(HTTPServer):
         self.requests.append(request)
         try:
             HTTPServer.finish_request(self, request, client_address)
-        except socket.timeout:
-            pass
-        except Exception,inst:
+        except:
             errno = None
             pass
         self.requests.remove(request)
