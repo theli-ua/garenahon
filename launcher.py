@@ -47,6 +47,8 @@ interface_patch_files = [
 'ui/fe2/store_templates.package',
 'ui/fe2/system_bar.package',
 'ui/fe2/ui_items_2.interface',
+#2.5.12.0
+'ui/scripts/regions.lua',
 ]
 current_version = None
 patchurl_1 = None
@@ -344,8 +346,10 @@ def patch_matchmaking(path):
                     patch_login2 = False
                 else:
                     out.append(line.replace('cl_GarenaEnable','_theli_GarenaEnable'))
-            elif line.find('ssl="true"'):
+            elif line.find('ssl="true"') != -1:
                 out.append(line.replace('ssl="true"','ssl="false"'))
+            elif line.find("['loginSytem'] = false") != -1:
+                out.append(line.replace("['loginSytem'] = false","['loginSytem'] = true"))
             else:
                 out.append(line)
         to.writestr(f,'\n'.join(out))
@@ -394,7 +398,6 @@ def find_latest_version():
         print ("Found latest appropriate version: {0}".format(current_version))
     except:
         print ("Found latest appropriate version: %s" % (current_version))
-
 
 def update_honpatch():
     global current_version
