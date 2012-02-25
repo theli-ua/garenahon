@@ -330,7 +330,10 @@ def patch_matchmaking(path):
     patch_login2 = False
     for f in interface_patch_files:
         out = []
-        mm = res.read(f).decode('utf8').splitlines()
+        try:
+            mm = res.read(f).decode('utf8').splitlines()
+        except:
+            continue
         for line in mm:
             if line.find('Login Options') != -1 or line.find('Login Input Box') != -1 \
                     or line.find('name="main_login_user"') != -1:
