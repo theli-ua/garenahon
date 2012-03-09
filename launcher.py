@@ -519,9 +519,11 @@ def main():
         args.append('localhost:{0}'.format(WEBSERVER_PORT))
     except:
         args.append('localhost:%d' % (WEBSERVER_PORT))
+    args.append('-region')
     if sys.argv[1] == 'cis':
-        args.append('-region')
-        args.append('RU')
+        args.append('ru')
+    elif sys.argv[1] == 'sea':
+        args.append('sea')
     args.append('-webserver')
     args.append(GARENA_WEBSERVER)
 
