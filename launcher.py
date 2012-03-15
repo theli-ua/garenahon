@@ -537,9 +537,9 @@ def main():
     args = [HON_BINARY]
     args.append('-masterserver')
     try:
-        args.append('localhost:{0}'.format(WEBSERVER_PORT))
+        args.append('127.0.0.1:{0}'.format(WEBSERVER_PORT))
     except:
-        args.append('localhost:%d' % (WEBSERVER_PORT))
+        args.append('127.0.0.1:%d' % (WEBSERVER_PORT))
     args.append('-region')
     if sys.argv[1] == 'cis':
         args.append('ru')
