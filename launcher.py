@@ -54,6 +54,7 @@ current_version = None
 patchurl_1 = None
 patchurl_2 = None
 garena_token = ''
+DEBUG = False
 
 try:
     #3.x
@@ -81,6 +82,10 @@ try:
 except:
     import cgi
     parse_qs = cgi.parse_qs
+
+def debug(*args):
+    if DEBUG:
+        print(args)
 
 def unserialize(s):
     return _unserialize_var(s)[0]
@@ -189,11 +194,16 @@ def getVerInfo(os,arch,masterserver):
     return d
 
 def get_garena_token(user,password):
+    debug('Trying to get garena token','user:',user)
     PORT = 8005
     try:
         ip_region = urlopen('http://75.126.149.34:6008/').read()
     except:
+        debug(sys.exc_type,sys.exc_value)
+        debug(sys.exc_traceback)
+        debug(sys.exc_info())
         ip_region = 'RU'.encode('utf8')
+    debug('ip_region',ip_region)
 
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.connect((GARENA_AUTH_SERVER, PORT))
@@ -204,12 +214,14 @@ def get_garena_token(user,password):
     data = struct.pack('<IHHB16s33s5s',0x3b,0x0101,0x80,0,user,password,ip_region)
     s.send(data)
     data = s.recv(42)
+    debug('Data from garena server: ',data)
     s.close()
     parsed = struct.unpack('<IB32sBI',data)
     return parsed[2]
     
 
 def forward(path,query):
+    debug('Forward request',path,query)
     details = urlencode(query,True).encode('utf8')
     try:
         url = Request('http://{0}{1}'.format(GARENA_MASTERSERVER, path),details)
@@ -217,6 +229,7 @@ def forward(path,query):
         url = Request('http://%s%s' % (GARENA_MASTERSERVER, path),details)
     url.add_header("User-Agent",USER_AGENT)
     data = urlopen(url).read()
+    debug('Data from masterserver: ',data)
     return data
 
 class MyHTTPServer(HTTPServer):
@@ -282,7 +295,6 @@ class MyHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         global garena_token
         global current_version
-        #try:
         if True:
             self.send_response(200)
             self.end_headers()
@@ -294,8 +306,6 @@ class MyHandler(BaseHTTPRequestHandler):
                 response = unserialize('a:2:{i:0;a:7:{s:4:"name";s:7:"version";s:7:"version";s:7:"2.5.5.1";s:14:"compat_version";s:5:"0.0.0";s:2:"os";s:3:"wgc";s:4:"arch";s:4:"i686";s:3:"url";s:30:"http://dl.heroesofnewerth.com/";s:4:"url2";s:29:"http://patch.hon.s2games.com/";}s:7:"version";s:7:"2.5.5.1";}')
                 response[0]['version'] = current_version
                 response['version'] = current_version
-                #response[0]['url'] = patchurl_1
-                #response[0]['url2'] = patchurl_2
                 response[0]['os'] = HOST_OS
                 response[0]['arch'] = HOST_ARCH
                 self.wfile.write(dumps(response))
@@ -308,13 +318,14 @@ class MyHandler(BaseHTTPRequestHandler):
                     garena_token = get_garena_token(query['login'],query['password'])
                     query = {'f':'token_auth','token' : garena_token }
                 except:
+                    debug(sys.exc_type,sys.exc_value)
+                    debug(sys.exc_traceback)
+                    debug(sys.exc_info())
                     self.wfile.write('a:2:{i:0;b:0;s:4:"auth";s:29:"Invalid Nickname or Password.";}')
                     return
             elif 'f' in query and query['f'][0] == 'garena_register':
                 query['token'] = garena_token
             self.wfile.write(forward(self.path,query));
-        #except :
-        #    pass
         
 def clean_patches(path):
     if os.path.exists(path):
@@ -329,10 +340,14 @@ def patch_matchmaking(path):
     patch_login1 = False
     patch_login2 = False
     for f in interface_patch_files:
+        debug('Trying to patch file ',f)
         out = []
         try:
             mm = res.read(f).decode('utf8').splitlines()
         except:
+            debug(sys.exc_type,sys.exc_value)
+            debug(sys.exc_traceback)
+            debug(sys.exc_info())
             continue
         for line in mm:
             if line.find('Login Options') != -1 or line.find('Login Input Box') != -1 \
@@ -362,8 +377,10 @@ def patch_matchmaking(path):
 def find_latest_version():
     global current_version,patchurl_1,patchurl_2
     wgc_version = getVerInfo('wgc','i686',GARENA_MASTERSERVER)['version']
+    debug('WGC version: ',wgc_version)
     wgc_version = wgc_version.split('.')
     verinfo = getVerInfo(HOST_OS,HOST_ARCH,masterserver_international) 
+    debug('International version info: ',verinfo)
     baseurl = verinfo[0]['url'] + HOST_OS + '/' + HOST_ARCH + '/'
     baseurl2 = verinfo[0]['url2'] + HOST_OS + '/' + HOST_ARCH + '/'
     patchurl_1 = verinfo[0]['url']
@@ -375,6 +392,7 @@ def find_latest_version():
             ver = '.'.join(wgc_version[:-1])
         else:
             ver = '.'.join(wgc_version)
+        debug('Trying version: ',ver)
         try:
             url1 = '{0}/{1}/manifest.xml.zip'.format(baseurl,ver)
             url2 = '{0}/{1}/manifest.xml.zip'.format(baseurl2,ver)
@@ -468,7 +486,8 @@ def update_honpatch():
         p.wait()
     
 def main():
-    global WEBSERVER_PORT,abspath,GARENA_MASTERSERVER,GARENA_WEBSERVER,GARENA_AUTH_SERVER
+    global WEBSERVER_PORT,abspath,GARENA_MASTERSERVER,GARENA_WEBSERVER,\
+            GARENA_AUTH_SERVER,DEBUG
     if len(sys.argv) < 2 or sys.argv[1] not in ['cis','sea']:
         print('You need to specify region on command line, like')
         print('./launcher.py cis')
@@ -484,6 +503,8 @@ def main():
         GARENA_AUTH_SERVER = 'hon.auth.garenanow.com'
         GARENA_MASTERSERVER = 'masterserver.garena.s2games.com'
 
+    if len(sys.argv) > 2 and sys.argv[2] == '-d':
+        DEBUG = True
 
     abspath = os.path.abspath(__file__)
     dname = os.path.dirname(abspath)
@@ -541,4 +562,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
