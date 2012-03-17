@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import os,sys
+import os,sys,stat
 import socket,struct,threading,subprocess
 import zipfile
 import select
@@ -317,6 +317,10 @@ class MyHandler(BaseHTTPRequestHandler):
                         query['login'] = query['login'][0]
                     garena_token = get_garena_token(query['login'],query['password'])
                     query = {'f':'token_auth','token' : garena_token }
+                    #s:11:"garena_auth"
+                    data = forward(self.path,query).replace('s:11:"garena_auth"','s:4:"auth"')
+                    self.wfile.write(data)
+                    return
                 except:
                     debug(sys.exc_type,sys.exc_value)
                     debug(sys.exc_traceback)
@@ -350,26 +354,31 @@ def patch_matchmaking(path):
             debug(sys.exc_info())
             continue
         for line in mm:
-            if line.find('Login Options') != -1 or line.find('Login Input Box') != -1 \
-                    or line.find('name="main_login_user"') != -1:
-                patch_login1 = True
-            elif line.find('Garena NO direct start warning') != -1 or line.find('iris.tga') != -1:
-                patch_login2 = True
             if line.find('cl_GarenaEnable') != -1:
-                if patch_login1:
-                    out.append(line.replace('!cl_GarenaEnable','_theli_GarenaEnable'))
-                    patch_login1 = False
-                elif patch_login2:
-                    out.append(line.replace('cl_GarenaEnable','!_theli_GarenaEnable'))
-                    patch_login2 = False
-                else:
-                    out.append(line.replace('cl_GarenaEnable','_theli_GarenaEnable'))
+                out.append(line.replace('cl_GarenaEnable','_theli_GarenaEnable'))
             elif line.find('ssl="true"') != -1:
                 out.append(line.replace('ssl="true"','ssl="false"'))
             elif line.find("['loginSytem'] = false") != -1:
                 out.append(line.replace("['loginSytem'] = false","['loginSytem'] = true"))
+            elif line.find('regions.lua') != -1:
+                out.append('<panel color="invisible" noclick="true" name="theliLoginStatusHelper" />')
+                out.append(line)
             else:
                 out.append(line)
+        if f == 'ui/scripts/regions.lua':
+            out.append("""
+
+local function theliLoginStatus(self, accountStatus, statusDescription, isLoggedIn, pwordExpired, isLoggedInChanged, updaterStatus)
+    -- println('^cLoginStatus - accountStatus: ' .. tostring(accountStatus) .. ' | statusDescription: ' .. tostring(statusDescription)  .. ' | isLoggedIn: ' .. tostring(isLoggedIn)  .. ' | pwordExpired: ' .. tostring(pwordExpired)  .. ' | isLoggedInChanged: ' .. tostring(isLoggedInChanged)  ..  ' | updaterStatus: ' .. tostring(updaterStatus) )
+    if (statusDescription == "#GA002000") then
+        Trigger('GarenaClientLoginResponse', statusDescription)
+    -- else
+    --    Trigger('GarenaClientLoginResponse', param0)
+    end
+end
+interface:GetWidget("theliLoginStatusHelper"):RegisterWatch('LoginStatus', theliLoginStatus)
+
+""")
         to.writestr(f,'\n'.join(out))
     res.close()
     to.close()
@@ -551,10 +560,15 @@ def main():
     args.append('-execute')
     args.append('"set chat_serverPortOverride 11033; set _theli_GarenaEnable true"')
     
-    print ('patching matchmaking interface')
+    print ('Patching interface')
     patch_matchmaking(mod_path)
     
-    p = subprocess.Popen(args)
+    try:
+        p = subprocess.Popen(args)
+    except OSError as err:
+        if err.errno == 13:
+            os.chmod(HON_BINARY,stat.S_IRWXU | stat.S_IROTH | stat.S_IXOTH | stat.S_IRGRP | stat.S_IXGRP)
+            p = subprocess.Popen(args)
     p.wait()
     print('hon exited, stopping masterserver and cleaning up')
     clean_patches(mod_path)    
