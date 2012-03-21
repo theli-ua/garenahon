@@ -354,6 +354,11 @@ def patch_matchmaking(path):
             debug(sys.exc_info())
             continue
         for line in mm:
+            if line.find('Login Options') != -1 or line.find('Login Input Box') != -1 \
+                    or line.find('name="main_login_user"') != -1:
+                patch_login1 = True
+            elif line.find('Garena NO direct start warning') != -1 or line.find('iris.tga') != -1:
+                patch_login2 = True
             if line.find('cl_GarenaEnable') != -1:
                 out.append(line.replace('cl_GarenaEnable','_theli_GarenaEnable'))
             elif line.find('ssl="true"') != -1:
@@ -558,7 +563,7 @@ def main():
     args.append(GARENA_WEBSERVER)
 
     args.append('-execute')
-    args.append('"set chat_serverPortOverride 11033; set _theli_GarenaEnable true"')
+    args.append('"set chat_serverPortOverride 11033; set _theli_GarenaEnable true; CheckForUpdates"')
     
     print ('Patching interface')
     patch_matchmaking(mod_path)
