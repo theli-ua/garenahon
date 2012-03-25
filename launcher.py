@@ -139,7 +139,7 @@ def dumps(data, charset='utf-8', errors='strict', object_hook=None):
     """
     def _serialize(obj, keypos):
         if keypos:
-            if isinstance(obj, (int, long, float, bool)):
+            if isinstance(obj, (int, float, bool)):
                 return 'i:%i;' % obj
             if isinstance(obj, basestring):
                 if isinstance(obj, unicode):
@@ -153,7 +153,7 @@ def dumps(data, charset='utf-8', errors='strict', object_hook=None):
                 return 'N;'
             if isinstance(obj, bool):
                 return 'b:%i;' % obj
-            if isinstance(obj, (int, long)):
+            if isinstance(obj, (int)):
                 return 'i:%s;' % obj
             if isinstance(obj, float):
                 return 'd:%s;' % obj
@@ -570,8 +570,9 @@ def main():
     
     try:
         p = subprocess.Popen(args)
-    except OSError as err:
-        if err.errno == 13:
+    #except OSError as err:
+    except OSError, (errno, strerror):
+        if errno == 13:
             os.chmod(HON_BINARY,stat.S_IRWXU | stat.S_IROTH | stat.S_IXOTH | stat.S_IRGRP | stat.S_IXGRP)
             p = subprocess.Popen(args)
     p.wait()
