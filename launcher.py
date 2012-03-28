@@ -400,7 +400,7 @@ def find_latest_version():
     patchurl_1 = verinfo[0]['url']
     patchurl_2 = verinfo[0]['url2']
     #just in case there was non-windows hotfix
-    wgc_version[-1] = str(int(wgc_version[-1]) + 1)
+    wgc_version[-1] = str(int(wgc_version[-1]) + 2)
     while int(wgc_version[-1]) >= 0:
         if wgc_version[-1] == '0':
             ver = '.'.join(wgc_version[:-1])
