@@ -196,13 +196,14 @@ def getVerInfo(os,arch,masterserver):
 def get_garena_token(user,password):
     debug('Trying to get garena token','user:',user)
     PORT = 8005
-    try:
-        ip_region = urlopen('http://75.126.149.34:6008/').read()
-    except:
-        debug(sys.exc_type,sys.exc_value)
-        debug(sys.exc_traceback)
-        debug(sys.exc_info())
-        ip_region = 'RU'.encode('utf8')
+    #try:
+        #ip_region = urlopen('http://75.126.149.34:6008/').read()
+    #except:
+        #debug(sys.exc_type,sys.exc_value)
+        #debug(sys.exc_traceback)
+        #debug(sys.exc_info())
+        #ip_region = 'RU'.encode('utf8')
+    ip_region = 'RU'.encode('utf8')
     debug('ip_region',ip_region)
 
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
