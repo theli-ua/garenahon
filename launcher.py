@@ -51,8 +51,6 @@ interface_patch_files = [
 'ui/scripts/regions.lua',
 ]
 current_version = None
-patchurl_1 = None
-patchurl_2 = None
 garena_token = ''
 DEBUG = False
 
@@ -181,8 +179,16 @@ def dumps(data, charset='utf-8', errors='strict', object_hook=None):
             raise TypeError('can\'t serialize %r' % type(obj))
     return _serialize(data, False)
 
-def getVerInfo(os,arch,masterserver):
-    details = urlencode({'version' : '0.0.0.0', 'os' : os ,'arch' : arch}).encode('utf8')
+def getVerInfo(os,arch,masterserver,version = None, repair = False):
+    details = {'version' : '0.0.0.0', 'os' : os ,'arch' : arch}
+    if version is not None:
+        details['version'] = version
+    if repair:
+        details['repair'] = 1
+    else:
+        details['update'] = 1
+
+    details = urlencode(details).encode('utf8')
     try:
         url = Request('http://{0}/patcher/patcher.php'.format(masterserver),details)
     except:
@@ -203,7 +209,7 @@ def get_garena_token(user,password):
         #debug(sys.exc_traceback)
         #debug(sys.exc_info())
         #ip_region = 'RU'.encode('utf8')
-    ip_region = 'RU'.encode('utf8')
+    ip_region = 'XX'.encode('utf8')
     debug('ip_region',ip_region)
 
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -304,12 +310,8 @@ class MyHandler(BaseHTTPRequestHandler):
             postVars = self.rfile.read(varLen).decode('utf8')
             query = parse_qs(postVars)
             if self.path == '/patcher/patcher.php':
-                response = unserialize('a:2:{i:0;a:7:{s:4:"name";s:7:"version";s:7:"version";s:7:"2.5.5.1";s:14:"compat_version";s:5:"0.0.0";s:2:"os";s:3:"wgc";s:4:"arch";s:4:"i686";s:3:"url";s:30:"http://dl.heroesofnewerth.com/";s:4:"url2";s:29:"http://patch.hon.s2games.com/";}s:7:"version";s:7:"2.5.5.1";}')
-                response[0]['version'] = current_version
-                response['version'] = current_version
-                response[0]['os'] = HOST_OS
-                response[0]['arch'] = HOST_ARCH
-                self.wfile.write(dumps(response))
+                current_version['current_version'] = query['current_version'][0]
+                self.wfile.write(dumps(current_version))
                 return
             elif 'f' in query and (query['f'][0] == 'auth' or query['f'][0] == ['auth']):
                 try:
@@ -390,7 +392,7 @@ interface:GetWidget("theliLoginStatusHelper"):RegisterWatch('LoginStatus', theli
     to.close()
 
 def find_latest_version():
-    global current_version,patchurl_1,patchurl_2
+    global current_version
     wgc_version = getVerInfo('wgc','i686',GARENA_MASTERSERVER)['version']
     debug('WGC version: ',wgc_version)
     wgc_version = wgc_version.split('.')
@@ -402,6 +404,7 @@ def find_latest_version():
     patchurl_2 = verinfo[0]['url2']
     #just in case there was non-windows hotfix
     wgc_version[-1] = str(int(wgc_version[-1]) + 2)
+    manifest = None
     while int(wgc_version[-1]) >= 0:
         if wgc_version[-1] == '0':
             ver = '.'.join(wgc_version[:-1])
@@ -416,90 +419,27 @@ def find_latest_version():
             url2 = '%s/%s/manifest.xml.zip' % (baseurl2,ver)
 
         try:
-            urlopen(url1)
+            manifest = urlopen(url1)
             current_version = '.'.join(wgc_version)
             break
         except:
             pass
 
         try:
-            urlopen(url2)
+            manifest = urlopen(url2)
             current_version = '.'.join(wgc_version)
             break
         except:
             pass
 
         wgc_version[-1] = str(int(wgc_version[-1]) - 1)
+
     try:
         print ("Found latest appropriate version: {0}".format(current_version))
     except:
         print ("Found latest appropriate version: %s" % (current_version))
+    current_version = getVerInfo(HOST_OS,HOST_ARCH,masterserver_international, version = current_version) 
 
-def update_honpatch():
-    global current_version
-    if not os.path.exists('honpatch.py'):
-        print('honpatch not found,will use ingame updater')
-        return
-    from honpatch import getVerInfo,Manifest,fetch_single
-    #get latest windows garena version
-    wgc_version = getVerInfo('wgc','i686',GARENA_MASTERSERVER)['version']
-    if not os.path.exists('manifest.xml'):
-        #sourceManifest = Manifest()
-        try:
-            print('No manifest.xml found in {0}, you need to place launcher.py in HoN directory'.format(abspath))
-        except:
-            print('No manifest.xml found in %s, you need to place launcher.py in HoN directory' % (abspath))
-    else:
-        sourceManifest = Manifest(xmlpath='manifest.xml')
-    if wgc_version == sourceManifest.version:
-        print('Already up to date')
-        return
-    verinfo = getVerInfo('lac','x86-biarch',masterserver_international) 
-    if verinfo['version'] == wgc_version:
-        destver = wgc_version
-    else:
-        import tempfile,shutil
-        fetchdir = tempfile.mkdtemp()
-        baseurl = verinfo[0]['url'] + HOST_OS + '/' + HOST_ARCH + '/'
-        baseurl2 = verinfo[0]['url2'] + HOST_OS + '/' + HOST_ARCH + '/'
-        if not fetch_single(baseurl,baseurl2,wgc_version,'manifest.xml',fetchdir,4):
-            try:
-                print("Can't find {1} version {0}".format(wgc_version,system()))
-            except:
-                print("Can't find %s version %s" % (wgc_version,system()))
-            wgc_version = wgc_version.split('.')
-            wgc_version[-1] = '0'
-            wgc_version = '.'.join(wgc_version)
-            try:
-                print('Trying {0}'.format(wgc_version))
-            except:
-                print('Trying %s' % (wgc_version))
-            if sourceManifest.version == wgc_version:
-                print('Nothing to update')
-                return
-            if not fetch_single(baseurl,baseurl2,wgc_version,'manifest.xml',fetchdir,4):
-                print('Can''t fetch that too :(')
-                return
-        if sourceManifest.version == wgc_version:
-            print('Nothing to update')
-            return
-        args = [sys.executable,'honpatch.py'] 
-        current_version = wgc_version
-        if sourceManifest.version == '0.0.0.0':
-            args += ['-d','.']
-        else:
-            args += ['-s','.']
-        args += ['--os',HOST_OS]
-        args += ['--arch',HOST_ARCH]
-        args += ['-v',wgc_version]
-        args += ['--masterserver',masterserver_international]
-        p = subprocess.Popen(args)
-        try:
-            print('patching hon to version {0}'.format(wgc_version))
-        except:
-            print('patching hon to version %s' % (wgc_version))
-        p.wait()
-    
 def main():
     global WEBSERVER_PORT,abspath,GARENA_MASTERSERVER,GARENA_WEBSERVER,\
             GARENA_AUTH_SERVER,DEBUG
@@ -526,10 +466,7 @@ def main():
     os.chdir(dname)
     
     print('checking for HoN updates')
-    if not os.path.exists('honpatch.py'):
-        find_latest_version()
-    else:
-        update_honpatch()
+    find_latest_version()
 
     mod_path = os.path.expanduser(MOD_PATH)
     clean_patches(mod_path)
@@ -564,8 +501,9 @@ def main():
     args.append(GARENA_WEBSERVER)
 
     args.append('-execute')
-    args.append('"set chat_serverPortOverride 11033; set _theli_GarenaEnable true; CheckForUpdates"')
-    
+    args.append('"set chat_serverPortOverride 11033; set _theli_GarenaEnable true; set upd_restartAfterUpdate false"')
+
+
     print ('Patching interface')
     patch_matchmaking(mod_path)
     
