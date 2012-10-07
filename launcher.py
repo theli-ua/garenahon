@@ -9,6 +9,8 @@ abspath = ''
 WEBSERVER_PORT = 8123
 masterserver_international = 'masterserver.hon.s2games.com'
 USER_AGENT = "S2 Games/Heroes of Newerth/2.0.29.1/lac/x86-biarch"
+CURRENT_REGION = None
+REGIONAL_OS = None
 
 if system() == 'Linux':
     MOD_PATH = "~/.Heroes of Newerth/game/resources_theli_garena.s2z"
@@ -302,6 +304,7 @@ class MyHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         global garena_token
         global current_version
+        global GARENA_AUTH_SERVER
         if True:
             self.send_response(200)
             self.end_headers()
@@ -313,7 +316,8 @@ class MyHandler(BaseHTTPRequestHandler):
                 current_version['current_version'] = query['current_version'][0]
                 self.wfile.write(dumps(current_version))
                 return
-            elif 'f' in query and (query['f'][0] == 'auth' or query['f'][0] == ['auth']):
+            elif 'f' in query and GARENA_AUTH_SERVER is not None \
+                    and (query['f'][0] == 'auth' or query['f'][0] == ['auth']):
                 try:
                     if isinstance(query['password'], list):
                         query['password'] = query['password'][0]
@@ -339,6 +343,7 @@ def clean_patches(path):
         os.unlink(path)
 
 def patch_matchmaking(path):
+    global CURRENT_REGION
     dpath = os.path.dirname(path)
     if not os.path.exists(dpath):
         os.makedirs(dpath)
@@ -356,45 +361,58 @@ def patch_matchmaking(path):
             debug(sys.exc_traceback)
             debug(sys.exc_info())
             continue
-        for line in mm:
-            if line.find('Login Options') != -1 or line.find('Login Input Box') != -1 \
-                    or line.find('name="main_login_user"') != -1:
-                patch_login1 = True
-            elif line.find('Garena NO direct start warning') != -1 or line.find('iris.tga') != -1:
-                patch_login2 = True
-            if line.find('cl_GarenaEnable') != -1:
-                out.append(line.replace('cl_GarenaEnable','_theli_GarenaEnable'))
-            elif line.find('ssl="true"') != -1:
-                out.append(line.replace('ssl="true"','ssl="false"'))
-            elif line.find("['loginSytem'] = false") != -1:
-                out.append(line.replace("['loginSytem'] = false","['loginSytem'] = true"))
-            elif line.find('regions.lua') != -1:
-                out.append('<panel color="invisible" noclick="true" name="theliLoginStatusHelper" />')
-                out.append(line)
-            else:
-                out.append(line)
-        if f == 'ui/scripts/regions.lua':
-            out.append("""
 
-local function theliLoginStatus(self, accountStatus, statusDescription, isLoggedIn, pwordExpired, isLoggedInChanged, updaterStatus)
-    -- println('^cLoginStatus - accountStatus: ' .. tostring(accountStatus) .. ' | statusDescription: ' .. tostring(statusDescription)  .. ' | isLoggedIn: ' .. tostring(isLoggedIn)  .. ' | pwordExpired: ' .. tostring(pwordExpired)  .. ' | isLoggedInChanged: ' .. tostring(isLoggedInChanged)  ..  ' | updaterStatus: ' .. tostring(updaterStatus) )
-    if (statusDescription == "#GA002000") then
-        Trigger('GarenaClientLoginResponse', statusDescription)
-    -- else
-    --    Trigger('GarenaClientLoginResponse', param0)
+        if CURRENT_REGION == 'lat':
+            for line in mm:
+                if line.find('ssl="true"') != -1:
+                    out.append(line.replace('ssl="true"','ssl="false"'))
+                    out.append(line)
+                elif line.find('region_latinamerica') != -1:
+                    out.append(line.replace('region_latinamerica','_theli_region_latinamerica'))
+                else:
+                    out.append(line)
+        else:
+            for line in mm:
+                if line.find('Login Options') != -1 or line.find('Login Input Box') != -1 \
+                        or line.find('name="main_login_user"') != -1:
+                    patch_login1 = True
+                elif line.find('Garena NO direct start warning') != -1 or line.find('iris.tga') != -1:
+                    patch_login2 = True
+                if line.find('cl_GarenaEnable') != -1:
+                    out.append(line.replace('cl_GarenaEnable','_theli_GarenaEnable'))
+                elif line.find('region_garena') != -1:
+                    out.append(line.replace('region_garena','_theli_region_garena'))
+                elif line.find('ssl="true"') != -1:
+                    out.append(line.replace('ssl="true"','ssl="false"'))
+                elif line.find("['loginSytem'] = false") != -1:
+                    out.append(line.replace("['loginSytem'] = false","['loginSytem'] = true"))
+                elif line.find('regions.lua') != -1:
+                    out.append('<panel color="invisible" noclick="true" name="theliLoginStatusHelper" />')
+                    out.append(line)
+                else:
+                    out.append(line)
+            if f == 'ui/scripts/regions.lua':
+                out.append("""
+
+    local function theliLoginStatus(self, accountStatus, statusDescription, isLoggedIn, pwordExpired, isLoggedInChanged, updaterStatus)
+        -- println('^cLoginStatus - accountStatus: ' .. tostring(accountStatus) .. ' | statusDescription: ' .. tostring(statusDescription)  .. ' | isLoggedIn: ' .. tostring(isLoggedIn)  .. ' | pwordExpired: ' .. tostring(pwordExpired)  .. ' | isLoggedInChanged: ' .. tostring(isLoggedInChanged)  ..  ' | updaterStatus: ' .. tostring(updaterStatus) )
+        if (statusDescription == "#GA002000") then
+            Trigger('GarenaClientLoginResponse', statusDescription)
+        -- else
+        --    Trigger('GarenaClientLoginResponse', param0)
+        end
     end
-end
-interface:GetWidget("theliLoginStatusHelper"):RegisterWatch('LoginStatus', theliLoginStatus)
+    interface:GetWidget("theliLoginStatusHelper"):RegisterWatch('LoginStatus', theliLoginStatus)
 
-""")
-        to.writestr(f,'\n'.join(out))
+    """)
+            to.writestr(f,'\n'.join(out))
     res.close()
     to.close()
 
 def find_latest_version():
-    global current_version
-    wgc_version = getVerInfo('wgc','i686',GARENA_MASTERSERVER)['version']
-    debug('WGC version: ',wgc_version)
+    global current_version, REGIONAL_OS
+    wgc_version = getVerInfo(REGIONAL_OS,'i686',GARENA_MASTERSERVER)['version']
+    debug('Regional version: ',wgc_version)
     wgc_version = wgc_version.split('.')
     verinfo = getVerInfo(HOST_OS,HOST_ARCH,masterserver_international) 
     debug('International version info: ',verinfo)
@@ -442,21 +460,32 @@ def find_latest_version():
 
 def main():
     global WEBSERVER_PORT,abspath,GARENA_MASTERSERVER,GARENA_WEBSERVER,\
-            GARENA_AUTH_SERVER,DEBUG
-    if len(sys.argv) < 2 or sys.argv[1] not in ['cis','sea']:
+            GARENA_AUTH_SERVER,DEBUG,CURRENT_REGION,REGIONAL_OS
+    if len(sys.argv) < 2 or sys.argv[1] not in ['cis','sea','lat']:
         print('You need to specify region on command line, like')
         print('./launcher.py cis')
         print('or')
         print('./launcher.py sea')
+        print('or')
+        print('./launcher.py lat')
         sys.exit(1)
     if sys.argv[1] == 'cis':
         GARENA_WEBSERVER = 'cis.heroesofnewerth.com'
         GARENA_AUTH_SERVER = 'Honsng_cs.mmoauth.garena.com'
         GARENA_MASTERSERVER = 'masterserver.cis.s2games.com'
-    else:
+        REGIONAL_OS = 'wgc'
+    elif sys.argv[1] == 'sea':
         GARENA_WEBSERVER = 'garena.heroesofnewerth.com'
         GARENA_AUTH_SERVER = 'hon.auth.garenanow.com'
         GARENA_MASTERSERVER = 'masterserver.garena.s2games.com'
+        REGIONAL_OS = 'wgc'
+    elif sys.argv[1] == 'lat':
+        GARENA_WEBSERVER = 'lat.heroesofnewerth.com'
+        GARENA_AUTH_SERVER = None
+        GARENA_MASTERSERVER = 'masterserver.lat.s2games.com'
+        REGIONAL_OS = 'wbc'
+
+    CURRENT_REGION = sys.argv[1]
 
     if len(sys.argv) > 2 and sys.argv[2] == '-d':
         DEBUG = True
@@ -493,15 +522,27 @@ def main():
     except:
         args.append('127.0.0.1:%d' % (WEBSERVER_PORT))
     args.append('-region')
-    if sys.argv[1] == 'cis':
+    if CURRENT_REGION == 'cis':
         args.append('ru')
-    elif sys.argv[1] == 'sea':
+    elif CURRENT_REGION == 'sea':
         args.append('sea')
+    elif CURRENT_REGION == 'lat':
+        args.append('lat')
+
     args.append('-webserver')
     args.append(GARENA_WEBSERVER)
 
+    startup = 'set chat_serverPortOverride 11033; set upd_restartAfterUpdate false;'
+    if CURRENT_REGION == 'lat':
+        startup += 'set _theli_region_latinamerica true;'
+    else:
+        startup += ' set _theli_GarenaEnable true;'
+        startup += ' set _theli_region_garena true;'
     args.append('-execute')
-    args.append('"set chat_serverPortOverride 11033; set _theli_GarenaEnable true; set upd_restartAfterUpdate false"')
+    args.append('"{0}"'.format(startup))
+
+    args.append('-config')
+    args.append(CURRENT_REGION)
 
 
     print ('Patching interface')
