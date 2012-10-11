@@ -539,7 +539,10 @@ def main():
         startup += ' set _theli_GarenaEnable true;'
         startup += ' set _theli_region_garena true;'
     args.append('-execute')
-    args.append('"{0}"'.format(startup))
+    try:
+        args.append('"{0}"'.format(startup))
+    except:
+        args.append('"%s"' % startup )
 
     args.append('-config')
     args.append(CURRENT_REGION)
@@ -550,7 +553,6 @@ def main():
     
     try:
         p = subprocess.Popen(args)
-    #except OSError as err:
     except OSError, (errno, strerror):
         if errno == 13:
             os.chmod(HON_BINARY,stat.S_IRWXU | stat.S_IROTH | stat.S_IXOTH | stat.S_IRGRP | stat.S_IXGRP)
