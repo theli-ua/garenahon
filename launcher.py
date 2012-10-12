@@ -459,11 +459,13 @@ def find_latest_version():
         print ("Found latest appropriate version: {0}".format(current_version))
     except:
         print ("Found latest appropriate version: %s" % (current_version))
-    latest_version['version'] = '2.7.0.0'
     if current_version != latest_version['version']:
         manifest_data = manifest.read()
         latest_version[0]['latest_manifest_checksum'] = sha1(manifest_data).hexdigest()
         latest_version[0]['latest_manifest_size'] = str(len(manifest_data))
+        latest_version['version'] = current_version
+        latest_version[0]['version'] = current_version
+        latest_version[0]['latest_version'] = current_version
 
 def main():
     global WEBSERVER_PORT,abspath,GARENA_MASTERSERVER,GARENA_WEBSERVER,\
