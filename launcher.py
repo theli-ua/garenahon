@@ -3,6 +3,7 @@ import os,sys,stat
 import socket,struct,threading,subprocess
 import zipfile
 import select
+from hashlib import sha1
 from platform import system
 
 abspath = ''
@@ -23,7 +24,6 @@ else:
     MOD_PATH = '~/Library/Application Support/Heroes of Newerth/game/resources_theli_garena.s2z'
     HON_BINARY = './HoN'
 
-#interface_patch_files = ['ui/fe2/matchmaking.package','ui/fe2/main.interface','ui/fe2/store_form_buycoins.package','ui/fe2/store_templates.package','ui/fe2/system_bar.package','ui/fe2/news.package','ui/fe2/public_games.package']
 interface_patch_files = [
 'ui/fe2/changelog.package',
 'ui/fe2/communicator.package',
@@ -49,10 +49,9 @@ interface_patch_files = [
 'ui/fe2/store_templates.package',
 'ui/fe2/system_bar.package',
 'ui/fe2/ui_items_2.interface',
-#2.5.12.0
 'ui/scripts/regions.lua',
 ]
-current_version = None
+latest_version = None
 garena_token = ''
 DEBUG = False
 
@@ -181,8 +180,10 @@ def dumps(data, charset='utf-8', errors='strict', object_hook=None):
             raise TypeError('can\'t serialize %r' % type(obj))
     return _serialize(data, False)
 
-def getVerInfo(os,arch,masterserver,version = None, repair = False):
+def getVerInfo(os,arch,masterserver,version = None, repair = False, current_version = None):
     details = {'version' : '0.0.0.0', 'os' : os ,'arch' : arch}
+    if current_version is not None:
+        details['current_version'] = current_version
     if version is not None:
         details['version'] = version
     if repair:
@@ -198,6 +199,8 @@ def getVerInfo(os,arch,masterserver,version = None, repair = False):
 
     url.add_header("User-Agent",USER_AGENT)
     data = urlopen(url).read().decode("utf8", 'ignore') 
+    debug('Info from patchserver:')
+    debug(data)
     d = unserialize(data)
     return d
 
@@ -303,7 +306,7 @@ class MyHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         global garena_token
-        global current_version
+        global latest_version
         global GARENA_AUTH_SERVER
         if True:
             self.send_response(200)
@@ -313,8 +316,8 @@ class MyHandler(BaseHTTPRequestHandler):
             postVars = self.rfile.read(varLen).decode('utf8')
             query = parse_qs(postVars)
             if self.path == '/patcher/patcher.php':
-                current_version['current_version'] = query['current_version'][0]
-                self.wfile.write(dumps(current_version))
+                latest_version['current_version'] = query['current_version'][0]
+                self.wfile.write(dumps(latest_version))
                 return
             elif 'f' in query and GARENA_AUTH_SERVER is not None \
                     and (query['f'][0] == 'auth' or query['f'][0] == ['auth']):
@@ -410,16 +413,16 @@ def patch_matchmaking(path):
     to.close()
 
 def find_latest_version():
-    global current_version, REGIONAL_OS
+    global latest_version, REGIONAL_OS
     wgc_version = getVerInfo(REGIONAL_OS,'i686',GARENA_MASTERSERVER)['version']
     debug('Regional version: ',wgc_version)
     wgc_version = wgc_version.split('.')
-    verinfo = getVerInfo(HOST_OS,HOST_ARCH,masterserver_international) 
-    debug('International version info: ',verinfo)
-    baseurl = verinfo[0]['url'] + HOST_OS + '/' + HOST_ARCH + '/'
-    baseurl2 = verinfo[0]['url2'] + HOST_OS + '/' + HOST_ARCH + '/'
-    patchurl_1 = verinfo[0]['url']
-    patchurl_2 = verinfo[0]['url2']
+    latest_version = getVerInfo(HOST_OS,HOST_ARCH,masterserver_international) 
+    debug('International version info: ',latest_version)
+    baseurl = latest_version[0]['url'] + HOST_OS + '/' + HOST_ARCH + '/'
+    baseurl2 = latest_version[0]['url2'] + HOST_OS + '/' + HOST_ARCH + '/'
+    patchurl_1 = latest_version[0]['url']
+    patchurl_2 = latest_version[0]['url2']
     #just in case there was non-windows hotfix
     wgc_version[-1] = str(int(wgc_version[-1]) + 2)
     manifest = None
@@ -456,7 +459,11 @@ def find_latest_version():
         print ("Found latest appropriate version: {0}".format(current_version))
     except:
         print ("Found latest appropriate version: %s" % (current_version))
-    current_version = getVerInfo(HOST_OS,HOST_ARCH,masterserver_international, version = current_version) 
+    latest_version['version'] = '2.7.0.0'
+    if current_version != latest_version['version']:
+        manifest_data = manifest.read()
+        latest_version[0]['latest_manifest_checksum'] = sha1(manifest_data).hexdigest()
+        latest_version[0]['latest_manifest_size'] = str(len(manifest_data))
 
 def main():
     global WEBSERVER_PORT,abspath,GARENA_MASTERSERVER,GARENA_WEBSERVER,\
@@ -532,7 +539,7 @@ def main():
     args.append('-webserver')
     args.append(GARENA_WEBSERVER)
 
-    startup = 'set chat_serverPortOverride 11033; set upd_restartAfterUpdate false;'
+    startup = 'set chat_serverPortOverride 11033;'
     if CURRENT_REGION == 'lat':
         startup += 'set _theli_region_latinamerica true;'
     else:
@@ -547,14 +554,14 @@ def main():
     args.append('-config')
     args.append(CURRENT_REGION)
 
-
     print ('Patching interface')
     patch_matchmaking(mod_path)
     
     try:
         p = subprocess.Popen(args)
-    except OSError, (errno, strerror):
-        if errno == 13:
+    except (OSError, ):
+        err = sys.exc_info()[1]
+        if err.errno == 13:
             os.chmod(HON_BINARY,stat.S_IRWXU | stat.S_IROTH | stat.S_IXOTH | stat.S_IRGRP | stat.S_IXGRP)
             p = subprocess.Popen(args)
     p.wait()
