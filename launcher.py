@@ -350,14 +350,31 @@ class MyHandler(BaseHTTPRequestHandler):
                     garena_token = get_garena_token(query['login'],query['password'])
                     query = {'f':'token_auth','token' : garena_token }
                     #s:11:"garena_auth"
-                    data = forward(self.path,query).replace('s:11:"garena_auth"','s:4:"auth"')
-                    self.wfile.write(data)
+                    data = forward(self.path,query)
+                    try:
+                        data = data.replace('s:11:"garena_auth"','s:4:"auth"')
+                    except:
+                        data = data.decode('utf-8').replace('s:11:"garena_auth"','s:4:"auth"')
+                    try:
+                        self.wfile.write(data)
+                    except:
+                        self.wfile.write(bytes(data,'UTF-8'))
                     return
                 except:
                     debug(sys.exc_type,sys.exc_value)
                     debug(sys.exc_traceback)
                     debug(sys.exc_info())
-                    self.wfile.write('a:2:{i:0;b:0;s:4:"auth";s:29:"Invalid Nickname or Password.";}')
+                    try:
+                        debug(sys.exc_type,sys.exc_value)
+                        debug(sys.exc_traceback)
+                        debug(sys.exc_info())
+                    except:
+                        debug('exception during garena auth request')
+                    data = 'a:2:{i:0;b:0;s:4:"auth";s:29:"Invalid Nickname or Password.";}'
+                    try:
+                        self.wfile.write(data)
+                    except:
+                        self.wfile.write(bytes(data,'UTF-8'))
                     return
             elif 'f' in query and query['f'][0] == 'garena_register':
                 query['token'] = garena_token
