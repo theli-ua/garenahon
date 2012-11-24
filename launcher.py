@@ -82,6 +82,21 @@ except:
     import cgi
     parse_qs = cgi.parse_qs
 
+try:
+    unicode = unicode
+except NameError:
+    # 'unicode' is undefined, must be Python 3
+    str = str
+    unicode = str
+    bytes = bytes
+    basestring = (str,bytes)
+else:
+    # 'unicode' exists, must be Python 2
+    str = str
+    unicode = unicode
+    bytes = str
+    basestring = basestring
+
 def debug(*args):
     if DEBUG:
         print(args)
@@ -141,7 +156,7 @@ def dumps(data, charset='utf-8', errors='strict', object_hook=None):
             if isinstance(obj, (int, float, bool)):
                 return 'i:%i;' % obj
             if isinstance(obj, basestring):
-                if isinstance(obj, unicode):
+                if unicode != str and isinstance(obj, unicode):
                     obj = obj.encode(charset, errors)
                 return 's:%i:"%s";' % (len(obj), obj)
             if obj is None:
@@ -157,13 +172,16 @@ def dumps(data, charset='utf-8', errors='strict', object_hook=None):
             if isinstance(obj, float):
                 return 'd:%s;' % obj
             if isinstance(obj, basestring):
-                if isinstance(obj, unicode):
+                if unicode != str and isinstance(obj, unicode):
                     obj = obj.encode(charset, errors)
                 return 's:%i:"%s";' % (len(obj), obj)
             if isinstance(obj, (list, tuple, dict)):
                 out = []
                 if isinstance(obj, dict):
-                    iterable = obj.iteritems()
+                    try:
+                        iterable = obj.iteritems()
+                    except:
+                        iterable = obj.items()
                 else:
                     iterable = enumerate(obj)
                 for key, value in iterable:
@@ -317,7 +335,11 @@ class MyHandler(BaseHTTPRequestHandler):
             query = parse_qs(postVars)
             if self.path == '/patcher/patcher.php':
                 latest_version['current_version'] = query['current_version'][0]
-                self.wfile.write(dumps(latest_version))
+                data = dumps(latest_version)
+                try:
+                    self.wfile.write(data)
+                except:
+                    self.wfile.write(bytes(data,'UTF-8'))
                 return
             elif 'f' in query and GARENA_AUTH_SERVER is not None \
                     and (query['f'][0] == 'auth' or query['f'][0] == ['auth']):
