@@ -82,6 +82,21 @@ except:
     import cgi
     parse_qs = cgi.parse_qs
 
+try:
+    unicode = unicode
+except NameError:
+    # 'unicode' is undefined, must be Python 3
+    str = str
+    unicode = str
+    bytes = bytes
+    basestring = (str,bytes)
+else:
+    # 'unicode' exists, must be Python 2
+    str = str
+    unicode = unicode
+    bytes = str
+    basestring = basestring
+
 def debug(*args):
     if DEBUG:
         print(args)
@@ -141,7 +156,7 @@ def dumps(data, charset='utf-8', errors='strict', object_hook=None):
             if isinstance(obj, (int, float, bool)):
                 return 'i:%i;' % obj
             if isinstance(obj, basestring):
-                if isinstance(obj, unicode):
+                if unicode != str and isinstance(obj, unicode):
                     obj = obj.encode(charset, errors)
                 return 's:%i:"%s";' % (len(obj), obj)
             if obj is None:
@@ -157,13 +172,16 @@ def dumps(data, charset='utf-8', errors='strict', object_hook=None):
             if isinstance(obj, float):
                 return 'd:%s;' % obj
             if isinstance(obj, basestring):
-                if isinstance(obj, unicode):
+                if unicode != str and isinstance(obj, unicode):
                     obj = obj.encode(charset, errors)
                 return 's:%i:"%s";' % (len(obj), obj)
             if isinstance(obj, (list, tuple, dict)):
                 out = []
                 if isinstance(obj, dict):
-                    iterable = obj.iteritems()
+                    try:
+                        iterable = obj.iteritems()
+                    except:
+                        iterable = obj.items()
                 else:
                     iterable = enumerate(obj)
                 for key, value in iterable:
@@ -317,7 +335,11 @@ class MyHandler(BaseHTTPRequestHandler):
             query = parse_qs(postVars)
             if self.path == '/patcher/patcher.php':
                 latest_version['current_version'] = query['current_version'][0]
-                self.wfile.write(dumps(latest_version))
+                data = dumps(latest_version)
+                try:
+                    self.wfile.write(data)
+                except:
+                    self.wfile.write(bytes(data,'UTF-8'))
                 return
             elif 'f' in query and GARENA_AUTH_SERVER is not None \
                     and (query['f'][0] == 'auth' or query['f'][0] == ['auth']):
@@ -328,14 +350,31 @@ class MyHandler(BaseHTTPRequestHandler):
                     garena_token = get_garena_token(query['login'],query['password'])
                     query = {'f':'token_auth','token' : garena_token }
                     #s:11:"garena_auth"
-                    data = forward(self.path,query).replace('s:11:"garena_auth"','s:4:"auth"')
-                    self.wfile.write(data)
+                    data = forward(self.path,query)
+                    try:
+                        data = data.replace('s:11:"garena_auth"','s:4:"auth"')
+                    except:
+                        data = data.decode('utf-8').replace('s:11:"garena_auth"','s:4:"auth"')
+                    try:
+                        self.wfile.write(data)
+                    except:
+                        self.wfile.write(bytes(data,'UTF-8'))
                     return
                 except:
                     debug(sys.exc_type,sys.exc_value)
                     debug(sys.exc_traceback)
                     debug(sys.exc_info())
-                    self.wfile.write('a:2:{i:0;b:0;s:4:"auth";s:29:"Invalid Nickname or Password.";}')
+                    try:
+                        debug(sys.exc_type,sys.exc_value)
+                        debug(sys.exc_traceback)
+                        debug(sys.exc_info())
+                    except:
+                        debug('exception during garena auth request')
+                    data = 'a:2:{i:0;b:0;s:4:"auth";s:29:"Invalid Nickname or Password.";}'
+                    try:
+                        self.wfile.write(data)
+                    except:
+                        self.wfile.write(bytes(data,'UTF-8'))
                     return
             elif 'f' in query and query['f'][0] == 'garena_register':
                 query['token'] = garena_token
