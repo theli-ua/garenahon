@@ -586,6 +586,7 @@ def main():
     else:
         startup += ' set _theli_GarenaEnable true;'
         startup += ' set _theli_region_garena true;'
+    startup += ' set login_useSRP false;'
     args.append('-execute')
     try:
         args.append('"{0}"'.format(startup))
