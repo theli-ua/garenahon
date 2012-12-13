@@ -14,15 +14,19 @@ CURRENT_REGION = None
 REGIONAL_OS = None
 
 if system() == 'Linux':
-    MOD_PATH = "~/.Heroes of Newerth/game/resources_theli_garena.s2z"
+    HON_SETTINGS_PATH = "~/.Heroes of Newerth/"
     HOST_OS = 'lac'
     HOST_ARCH = 'x86-biarch'
     HON_BINARY = './hon.sh'
 else:
     HOST_OS = 'mac'
     HOST_ARCH = 'universal'
-    MOD_PATH = '~/Library/Application Support/Heroes of Newerth/game/resources_theli_garena.s2z'
+    HON_SETTINGS_PATH = '~/Library/Application Support/Heroes of Newerth/'
     HON_BINARY = './HoN'
+
+
+HON_SETTINGS_PATH = os.path.expanduser(HON_SETTINGS_PATH)
+MOD_PATH = HON_SETTINGS_PATH + 'game/resources_theli_garena.s2z'
 
 interface_patch_files = [
 'ui/fe2/changelog.package',
@@ -505,8 +509,49 @@ def find_latest_version():
         latest_version['version'] = current_version
         latest_version[0]['version'] = current_version
         latest_version[0]['latest_version'] = current_version
+def autoupdate():
+    verpath = os.path.join(HON_SETTINGS_PATH,'theli_launcher_version')
+    try:import json
+    except:
+        print('You have too old python version, no autiupdate possible')
+        return
+    try:
+        if os.path.exists(verpath):
+            current_version = open(verpath).read()
+        else:
+            current_version = None
+        latest_version = json.loads(urlopen('https://api.github.com/repos/theli-ua/garenahon/commits?sha=master&per_page=1').read())[0]['sha']
+    except:
+        print('Failed to read current and latest versions')
+        return
+    print('Current version\n\t')
+    print(current_version)
+    print('Latest version\n\t')
+    print(latest_version)
+    if current_version == latest_version :
+        print ('Already up to date, nothing to update')
+        return
+    print('Downloading latest version')
+    try:
+        import tarfile,shutil
+        from cStringIO import StringIO
+        launcher = StringIO(urlopen('https://github.com/theli-ua/garenahon/archive/master.tar.gz').read())
+        launcher = tarfile.open(fileobj=launcher,mode='r')
+        launcher.extractall()
+        for f in os.listdir('garenahon-master'):
+            shutil.copy(os.path.join('garenahon-master',f),'./')
+        shutil.rmtree('garenahon-master')
+    except:
+        print('Failed to download and/or extract latest launcher version')
+        return
+    f = open(verpath,'w')
+    f.write(latest_version)
+    f.close()
+    print('Updated successfully\nPlease, restart!')
+    sys.exit(2)
 
 def main():
+    autoupdate()
     global WEBSERVER_PORT,abspath,GARENA_MASTERSERVER,GARENA_WEBSERVER,\
             GARENA_AUTH_SERVER,DEBUG,CURRENT_REGION,REGIONAL_OS
     if len(sys.argv) < 2 or sys.argv[1] not in ['cis','sea','lat']:
@@ -545,8 +590,7 @@ def main():
     print('checking for HoN updates')
     find_latest_version()
 
-    mod_path = os.path.expanduser(MOD_PATH)
-    clean_patches(mod_path)
+    clean_patches(MOD_PATH)
     started = False
     while not started:
         try:
@@ -597,7 +641,7 @@ def main():
     args.append(CURRENT_REGION)
 
     print ('Patching interface')
-    patch_matchmaking(mod_path)
+    patch_matchmaking(MOD_PATH)
     
     try:
         p = subprocess.Popen(args)
@@ -608,7 +652,7 @@ def main():
             p = subprocess.Popen(args)
     p.wait()
     print('hon exited, stopping masterserver and cleaning up')
-    clean_patches(mod_path)    
+    clean_patches(MOD_PATH)    
     server.shutdown()
 
 if __name__ == '__main__':
