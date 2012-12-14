@@ -509,6 +509,26 @@ def find_latest_version():
         latest_version['version'] = current_version
         latest_version[0]['version'] = current_version
         latest_version[0]['latest_version'] = current_version
+def show_message(msg):
+    try:
+        from Tkinter import Label,Tk,Button,Toplevel
+        class MyDialog:
+            def __init__(self, parent):
+                top = self.top = Toplevel(parent)
+                Label(top, text=msg).pack()
+                b = Button(top, text="OK", command=self.ok)
+                b.pack(pady=5)
+            def ok(self):
+                self.top.destroy()
+        root = Tk()
+        Button(root, text="OK!").pack()
+        root.update()
+
+        d = MyDialog(root)
+
+        root.wait_window(d.top)
+    except:pass
+
 def autoupdate():
     verpath = os.path.join(HON_SETTINGS_PATH,'theli_launcher_version')
     try:import json
@@ -548,6 +568,7 @@ def autoupdate():
     f.write(latest_version)
     f.close()
     print('Updated successfully\nPlease, restart!')
+    show_message('Launcher Updated\nPlease, restart!')
     sys.exit(2)
 
 def main():
