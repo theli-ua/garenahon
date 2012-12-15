@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import os,sys,stat
+import os,sys,stat,errno
 import socket,struct,threading,subprocess
 import zipfile
 import select
@@ -529,7 +529,16 @@ def show_message(msg):
         root.wait_window(d.top)
     except:pass
 
+def mkdir_p(path):
+    try:
+        os.makedirs(path)
+    except OSError as exc: # Python >2.5
+        if exc.errno == errno.EEXIST and os.path.isdir(path):
+            pass
+        else: raise
 def autoupdate():
+    if not os.path.exists(HON_SETTINGS_PATH):
+        mkdir_p(HON_SETTINGS_PATH)
     verpath = os.path.join(HON_SETTINGS_PATH,'theli_launcher_version')
     try:import json
     except:
