@@ -338,12 +338,13 @@ class MyHandler(BaseHTTPRequestHandler):
             postVars = self.rfile.read(varLen).decode('utf8')
             query = parse_qs(postVars)
             if self.path == '/patcher/patcher.php':
-                latest_version['current_version'] = query['current_version'][0]
-                data = dumps(latest_version)
-                try:
-                    self.wfile.write(data)
-                except:
-                    self.wfile.write(bytes(data,'UTF-8'))
+                if latest_version is not None:
+                    latest_version['current_version'] = query['current_version'][0]
+                    data = dumps(latest_version)
+                    try:
+                        self.wfile.write(data)
+                    except:
+                        self.wfile.write(bytes(data,'UTF-8'))
                 return
             elif 'f' in query and GARENA_AUTH_SERVER is not None \
                     and (query['f'][0] == 'auth' or query['f'][0] == ['auth']):
@@ -464,7 +465,7 @@ def find_latest_version():
         latest_version = getVerInfo(HOST_OS,HOST_ARCH,masterserver_international)
     except:
         print('Error during query to NA/EU masterserver for latest client version')
-        latest_version = '.'.join(wgc_version)
+        latest_version = None
         return
     debug('International version info: ',latest_version)
     baseurl = latest_version[0]['url'] + HOST_OS + '/' + HOST_ARCH + '/'
