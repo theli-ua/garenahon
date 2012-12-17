@@ -460,7 +460,12 @@ def find_latest_version():
     wgc_version = getVerInfo(REGIONAL_OS,'i686',GARENA_MASTERSERVER)['version']
     debug('Regional version: ',wgc_version)
     wgc_version = wgc_version.split('.')
-    latest_version = getVerInfo(HOST_OS,HOST_ARCH,masterserver_international) 
+    try:
+        latest_version = getVerInfo(HOST_OS,HOST_ARCH,masterserver_international)
+    except:
+        print('Error during query to NA/EU masterserver for latest client version')
+        latest_version = '.'.join(wgc_version)
+        return
     debug('International version info: ',latest_version)
     baseurl = latest_version[0]['url'] + HOST_OS + '/' + HOST_ARCH + '/'
     baseurl2 = latest_version[0]['url2'] + HOST_OS + '/' + HOST_ARCH + '/'
