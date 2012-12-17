@@ -465,6 +465,7 @@ def find_latest_version():
         latest_version = getVerInfo(HOST_OS,HOST_ARCH,masterserver_international)
     except:
         print('Error during query to NA/EU masterserver for latest client version')
+        print('You will not be able to update HoN')
         latest_version = None
         return
     debug('International version info: ',latest_version)
@@ -589,7 +590,7 @@ def autoupdate():
 def main():
     autoupdate()
     global WEBSERVER_PORT,abspath,GARENA_MASTERSERVER,GARENA_WEBSERVER,\
-            GARENA_AUTH_SERVER,DEBUG,CURRENT_REGION,REGIONAL_OS
+            GARENA_AUTH_SERVER,DEBUG,CURRENT_REGION,REGIONAL_OS,latest_version
     if len(sys.argv) < 2 or sys.argv[1] not in ['cis','sea','lat']:
         print('You need to specify region on command line, like')
         print('./launcher.py cis')
@@ -667,6 +668,8 @@ def main():
         startup += ' set _theli_GarenaEnable true;'
         startup += ' set _theli_region_garena true;'
     startup += ' set login_useSRP false;'
+    if latest_version is None:
+        startup += 'set upd_CheckForUpdates false;'
     args.append('-execute')
     try:
         args.append('"{0}"'.format(startup))
