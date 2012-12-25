@@ -1,8 +1,6 @@
 #!/bin/bash
 HONDIR=`dirname "$0"`
 pushd "$HONDIR"
-if [[ `uname` == 'Darwin' ]]; then
-        export LC_ALL=C
-fi
+export LC_ALL=C.UTF-8
 python launcher.py sea
 popd
