@@ -614,6 +614,7 @@ def getGameVersion():
         version = DUMP[pos:pos2].decode('UTF-32LE')
     except:
         pass
+    del (DUMP)
     print ('current version:')
     print (version)
     return version
@@ -732,7 +733,7 @@ def main():
         err = sys.exc_info()[1]
         if err.errno == 13:
             os.chmod(HON_BINARY,stat.S_IRWXU | stat.S_IROTH | stat.S_IXOTH | stat.S_IRGRP | stat.S_IXGRP)
-            p = subprocess.Popen(args)
+            p = subprocess.Popen(args, env = ENV)
     p.wait()
     print('hon exited, stopping masterserver and cleaning up')
     clean_patches(MOD_PATH)    
