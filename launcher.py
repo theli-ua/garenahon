@@ -587,6 +587,38 @@ def autoupdate():
     show_message('Launcher Updated\nPlease, restart!')
     sys.exit(2)
 
+def getGameVersion():
+    BINARY = None
+    version = None
+    if HOST_OS == 'lac':
+        if os.path.exists('hon-x86'):
+            BINARY = 'hon-x86'
+        elif os.path.exists('hon-x86_64'):
+            BINARY = 'hon-x86_64'
+    elif HOST_OS == 'mac':
+        if os.path.exists('HoN'):
+            BINARY = 'HoN'
+    if BINARY is None:
+        return None
+
+    f = open(BINARY,'rb')
+    DUMP = f.read()
+    f.close()
+
+    to_search = '[UNICODE]\0'.encode('UTF-32LE')
+
+    try:
+        pos = DUMP.index(to_search)
+        pos += len(to_search)
+        pos2 = 3 + DUMP.index('\0'.encode('UTF-32LE'), pos)
+        version = DUMP[pos:pos2].decode('UTF-32LE')
+    except:
+        pass
+    print ('current version:')
+    print (version)
+    return version
+
+
 def main():
     autoupdate()
     global WEBSERVER_PORT,abspath,GARENA_MASTERSERVER,GARENA_WEBSERVER,\
@@ -628,7 +660,16 @@ def main():
     find_latest_version()
 
     clean_patches(MOD_PATH)
+    run_update = False
     started = False
+    game_version  = getGameVersion()
+
+    ENV = os.environ.copy()
+
+    if game_version is not None and game_version != latest_version:
+        run_update = True
+        ENV['LC_ALL'] = 'C'
+
     while not started:
         try:
             server = MyHTTPServer(('', WEBSERVER_PORT), MyHandler)
@@ -679,11 +720,14 @@ def main():
     args.append('-config')
     args.append(CURRENT_REGION)
 
+    if run_update:
+        args.append('-update')
+
     print ('Patching interface')
     patch_matchmaking(MOD_PATH)
     
     try:
-        p = subprocess.Popen(args)
+        p = subprocess.Popen(args, env = ENV)
     except (OSError, ):
         err = sys.exc_info()[1]
         if err.errno == 13:
