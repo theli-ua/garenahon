@@ -668,8 +668,6 @@ def main():
     ENV = os.environ.copy()
 
     if game_version is not None and game_version != latest_version['version']:
-        import pdb
-        pdb.set_trace()
         print ('Running HoN update')
         run_update = True
         ENV['LC_ALL'] = 'C'
