@@ -455,7 +455,10 @@ def patch_matchmaking(path):
             try:
                 to.writestr(f,'\n'.join(out))
             except:
-                print('Error saving|modding file: ' + f)
+                try:
+                    to.writestr(f,'\n'.join(out).encode('utf-8'))
+                except:
+                    print('Error saving|modding file: ' + f)
     res.close()
     to.close()
 
