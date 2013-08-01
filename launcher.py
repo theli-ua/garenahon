@@ -452,7 +452,10 @@ def patch_matchmaking(path):
     interface:GetWidget("theliLoginStatusHelper"):RegisterWatch('LoginStatus', theliLoginStatus)
 
     """)
-            to.writestr(f,'\n'.join(out))
+            try:
+                to.writestr(f,'\n'.join(out))
+            except:
+                print('Error saving|modding file: ' + f)
     res.close()
     to.close()
 
