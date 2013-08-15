@@ -555,7 +555,7 @@ def autoupdate():
     verpath = os.path.join(HON_SETTINGS_PATH,'theli_launcher_version')
     try:import json
     except:
-        print('You have too old python version, no autiupdate possible')
+        print('You have too old python version, no autoupdate possible')
         return
     try:
         if os.path.exists(verpath):
