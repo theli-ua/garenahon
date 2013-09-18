@@ -398,6 +398,11 @@ def patch_matchmaking(path):
     to = zipfile.ZipFile(path,'w')
     patch_login1 = False
     patch_login2 = False
+    if CURRENT_REGION == 'cis':
+        try:
+            to.writestr('core_en.resources',res.read('core_ru.resources'))
+        except:
+            pass
     for f in interface_patch_files:
         debug('Trying to patch file ',f)
         out = []
