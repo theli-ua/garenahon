@@ -644,14 +644,14 @@ def main():
         print('./launcher.py lat')
         sys.exit(1)
     if sys.argv[1] == 'cis':
-        GARENA_WEBSERVER = 'cis.heroesofnewerth.com'
+        GARENA_WEBSERVER = 'cis-api.heroesofnewerth.com'
         GARENA_AUTH_SERVER = 'Honsng_cs.mmoauth.garena.com'
-        GARENA_MASTERSERVER = 'masterserver.cis.s2games.com'
+        GARENA_MASTERSERVER = 'masterserver.cis.heroesofnewerth.com'
         REGIONAL_OS = 'wgc'
     elif sys.argv[1] == 'sea':
-        GARENA_WEBSERVER = 'garena.heroesofnewerth.com'
+        GARENA_WEBSERVER = 'sea-api.heroesofnewerth.com'
         GARENA_AUTH_SERVER = 'hon.auth.garenanow.com'
-        GARENA_MASTERSERVER = 'masterserver.garena.s2games.com'
+        GARENA_MASTERSERVER = 'masterserver.sea.heroesofnewerth.com'
         REGIONAL_OS = 'wgc'
     elif sys.argv[1] == 'lat':
         GARENA_WEBSERVER = 'lat.heroesofnewerth.com'
