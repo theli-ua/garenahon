@@ -366,15 +366,12 @@ class MyHandler(BaseHTTPRequestHandler):
                         self.wfile.write(bytes(data,'UTF-8'))
                     return
                 except:
-                    debug(sys.exc_type,sys.exc_value)
-                    debug(sys.exc_traceback)
-                    debug(sys.exc_info())
-                    try:
+                    if hasattr(sys, 'exc_type'):
                         debug(sys.exc_type,sys.exc_value)
                         debug(sys.exc_traceback)
                         debug(sys.exc_info())
-                    except:
-                        debug('exception during garena auth request')
+                    else:
+                        debug(sys.exc_info())
                     data = 'a:2:{i:0;b:0;s:4:"auth";s:29:"Invalid Nickname or Password.";}'
                     try:
                         self.wfile.write(data)
@@ -409,9 +406,12 @@ def patch_matchmaking(path):
         try:
             mm = res.read(f).decode('utf8').splitlines()
         except:
-            debug(sys.exc_type,sys.exc_value)
-            debug(sys.exc_traceback)
-            debug(sys.exc_info())
+            if hasattr(sys, 'exc_type'):
+                debug(sys.exc_type,sys.exc_value)
+                debug(sys.exc_traceback)
+                debug(sys.exc_info())
+            else:
+                debug(sys.exc_info())
             continue
 
         if CURRENT_REGION == 'lat':
@@ -567,9 +567,15 @@ def autoupdate():
             current_version = open(verpath).read()
         else:
             current_version = None
-        latest_version = json.loads(urlopen('https://api.github.com/repos/theli-ua/garenahon/commits?sha=master&per_page=1').read())[0]['sha']
+        latest_version = json.loads(urlopen('https://api.github.com/repos/theli-ua/garenahon/commits?sha=master&per_page=1').read().decode('utf8'))[0]['sha']
     except:
         print('Failed to read current and latest versions')
+        if hasattr(sys, 'exc_type'):
+            debug(sys.exc_type,sys.exc_value)
+            debug(sys.exc_traceback)
+            debug(sys.exc_info())
+        else:
+            debug(sys.exc_info())
         return
     print('Current version\n\t')
     print(current_version)
