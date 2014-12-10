@@ -728,7 +728,8 @@ def main():
         startup += ' set _theli_GarenaEnable true;'
         startup += ' set _theli_region_garena true;'
     startup += ' set login_useSRP false;'
-    if latest_version is None:
+    #if latest_version is None:
+    if True:
         startup += 'set upd_CheckForUpdates false;'
     args.append('-execute')
     try:
