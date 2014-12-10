@@ -8,7 +8,7 @@ from platform import system
 
 abspath = ''
 WEBSERVER_PORT = 8123
-masterserver_international = 'masterserver.hon.s2games.com'
+masterserver_international = 'masterserver.naeu.heroesofnewerth.com'
 USER_AGENT = "S2 Games/Heroes of Newerth/2.0.29.1/lac/x86-biarch"
 CURRENT_REGION = None
 REGIONAL_OS = None
@@ -203,7 +203,7 @@ def dumps(data, charset='utf-8', errors='strict', object_hook=None):
     return _serialize(data, False)
 
 def getVerInfo(os,arch,masterserver,version = None, repair = False, current_version = None):
-    details = {'version' : '0.0.0.0', 'os' : os ,'arch' : arch}
+    details = {'version' : '0.0.0.0', 'os' : os ,'arch' : arch, 'neverusethisvar' : 'xx', 'cookie' : ''}
     if current_version is not None:
         details['current_version'] = current_version
     if version is not None:
@@ -338,6 +338,7 @@ class MyHandler(BaseHTTPRequestHandler):
             postVars = self.rfile.read(varLen).decode('utf8')
             query = parse_qs(postVars)
             if self.path == '/patcher/patcher.php':
+                print postVars
                 if latest_version is not None:
                     latest_version['current_version'] = query['current_version'][0]
                     data = dumps(latest_version)
@@ -728,9 +729,10 @@ def main():
         startup += ' set _theli_GarenaEnable true;'
         startup += ' set _theli_region_garena true;'
     startup += ' set login_useSRP false;'
-    #if latest_version is None:
-    if True:
+    if latest_version is None:
         startup += 'set upd_CheckForUpdates false;'
+    else:
+        startup += 'set upd_CheckForUpdates true;'
     args.append('-execute')
     try:
         args.append('"{0}"'.format(startup))
