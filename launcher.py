@@ -347,8 +347,9 @@ class MyHandler(BaseHTTPRequestHandler):
                     except:
                         self.wfile.write(bytes(data,'UTF-8'))
                 return
-            elif 'f' in query and GARENA_AUTH_SERVER is not None \
-                    and (query['f'][0] == 'auth' or query['f'][0] == ['auth']):
+            elif GARENA_AUTH_SERVER is not None \
+                    and (('f' in query and (query['f'][0] == 'auth' or query['f'][0] == ['auth'])) \
+                    or 'f=auth' in self.path):
                 try:
                     if isinstance(query['password'], list):
                         query['password'] = query['password'][0]
@@ -685,10 +686,10 @@ def main():
 
     ENV = os.environ.copy()
 
-    if game_version is not None and latest_version is not None and game_version != latest_version['version']:
-        print ('Running HoN update')
-        run_update = True
-        ENV['LC_ALL'] = 'C'
+    #if game_version is not None and latest_version is not None and game_version != latest_version['version']:
+        #print ('Running HoN update')
+        #run_update = True
+        #ENV['LC_ALL'] = 'C'
 
     while not started:
         try:
