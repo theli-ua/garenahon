@@ -624,7 +624,7 @@ def getGameVersion():
     DUMP = f.read()
     f.close()
 
-    to_search = '[UNICODE]\0'.encode('UTF-32LE')
+    to_search = 'Heroes of Newerth\0'.encode('UTF-32LE')
 
     try:
         pos = DUMP.index(to_search)
@@ -686,10 +686,10 @@ def main():
 
     ENV = os.environ.copy()
 
-    #if game_version is not None and latest_version is not None and game_version != latest_version['version']:
-        #print ('Running HoN update')
-        #run_update = True
-        #ENV['LC_ALL'] = 'C'
+    if game_version is not None and latest_version is not None and game_version != latest_version['version']:
+        print ('Running HoN update')
+        run_update = True
+        ENV['LC_ALL'] = 'C'
 
     while not started:
         try:
