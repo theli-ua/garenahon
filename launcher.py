@@ -682,14 +682,14 @@ def main():
     clean_patches(MOD_PATH)
     run_update = False
     started = False
-    game_version  = getGameVersion()
+    #game_version  = getGameVersion()
 
     ENV = os.environ.copy()
 
-    if game_version is not None and latest_version is not None and game_version != latest_version['version']:
-        print ('Running HoN update')
-        run_update = True
-        ENV['LC_ALL'] = 'C'
+    #if game_version is not None and latest_version is not None and game_version != latest_version['version']:
+        #print ('Running HoN update')
+        #run_update = True
+        #ENV['LC_ALL'] = 'C'
 
     while not started:
         try:
